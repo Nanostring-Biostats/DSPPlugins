@@ -9,7 +9,8 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
   #### preliminaries ----------------------------------
   
   # which columns of segmentAnnotations to color plots by:
-  colorby = choose_annotation_columns(annot = segmentAnnotations)
+  #colorby = choose_annotation_columns(annot = segmentAnnotations)
+  colorby = c("ScanName", "SegmentName")
   
   #  define the color scheme:
   cols = assign_colors(annot = segmentAnnotations[, colorby, drop = F])
@@ -34,6 +35,7 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
       
       tempmat = t(pmax(dataset[igg.names, ], 1))
       colnames(tempmat) = targetAnnotations[match(igg.names, targetAnnotations$TargetGUID), "TargetName"]
+      colnames(tempmat) = paste0(colnames(tempmat), " counts")
       plot_concordance(mat = tempmat, 
                        col = cols[[varname]][as.character(segmentAnnotations[, varname])], 
                        collegend = cols[[varname]], 
@@ -52,6 +54,7 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
       
       tempmat = t(pmax(dataset[hk.names, ], 1))
       colnames(tempmat) = targetAnnotations[match(hk.names, targetAnnotations$TargetGUID), "TargetName"]
+      colnames(tempmat) = paste0(colnames(tempmat), " counts")
       plot_concordance(mat = tempmat, 
                        col = cols[[varname]][as.character(segmentAnnotations[, varname])], 
                        collegend = cols[[varname]], 
@@ -70,6 +73,11 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
     for (varname in names(cols)) {
       
       tempmat = pmax(normfactors, 1)
+      colnames(tempmat)[colnames(tempmat) == "HK geomean"] = "HK geomean\n(counts)"
+      colnames(tempmat)[colnames(tempmat) == "Neg geomean"] = "Neg geomean\n(counts)"
+      colnames(tempmat)[colnames(tempmat) == "Nuclei"] = "Nuclei\n(counts)"
+      colnames(tempmat)[colnames(tempmat) == "Area"] = "Area (microns squared)"
+      
       plot_concordance(mat = tempmat, 
                        col = cols[[varname]][as.character(segmentAnnotations[, varname])], 
                        collegend = cols[[varname]], 
@@ -123,15 +131,16 @@ qc_protein_signal <- function(raw, neg.names, targetAnnotations = NULL, neg.thre
           names = protnames[o],
           ylab = "Log2 signal-to-background ratio",
           cex.axis = .85 - 0.3 * (nrow(snr) > 60))
+  axis(2, at = 1, labels = 1, las = 2, cex = 0.5)
   points(jitter(rep(1:nrow(snr), ncol(snr))), 
          log2(snr[o, ]), 
-         col = qccols[1 + (negfactor < neg.thresh)], 
+         col = alpha("darkblue", 0.5),
+         #col = qccols[1 + (negfactor < neg.thresh)], 
          pch = 16, cex = 0.5)
   abline(h = 0)
   abline(v = length(igginds) + 0.5, lty = 2)
-  abline(h = c(1,2), lty = 2)
-  legend("bottomright", pch = 16, col = qccols, 
-         legend = c(paste0(c("Neg mean >= ", "Neg mean < "), neg.thresh)))
+  abline(h = 1, lty = 2)
+  #legend("bottomright", pch = 16, col = qccols, legend = c(paste0(c("Neg mean >= ", "Neg mean < "), neg.thresh)))
 }
 
 
@@ -192,7 +201,7 @@ assign_colors <- function(annot) {
     cols[[varname]] = colvec[1:length(levels)]
     names(cols[[varname]]) = levels
     # remove the used colors from further consideration:
-    # colvec = setdiff(colvec, cols[[varname]]) # (disabling this so the more bold colors are re-used)
+    colvec = setdiff(colvec, cols[[varname]]) # (disabling this so the more bold colors are re-used)
   }
   
   return(cols)
