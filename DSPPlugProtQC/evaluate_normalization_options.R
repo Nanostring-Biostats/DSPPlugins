@@ -134,7 +134,7 @@ qc_protein_signal <- function(raw, neg.names, targetAnnotations = NULL, neg.thre
   axis(2, at = 1, labels = 1, las = 2, cex = 0.5)
   points(jitter(rep(1:nrow(snr), ncol(snr))), 
          log2(snr[o, ]), 
-         col = alpha("darkblue", 0.5),
+         col = "#00008B80",
          #col = qccols[1 + (negfactor < neg.thresh)], 
          pch = 16, cex = 0.5)
   abline(h = 0)
