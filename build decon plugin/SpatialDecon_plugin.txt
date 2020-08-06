@@ -78,8 +78,8 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
   
   # parse nuclei column
   cell_counts = NULL
-  if (is.element(nuclei_count_column_name, colnames(targetAnnotations))) {
-    cell_counts = as.numeric(targetAnnotations[, nuclei_count_column_name])
+  if (is.element(nuclei_count_column_name, colnames(segmentAnnotations))) {
+    cell_counts = as.numeric(segmentAnnotations[, nuclei_count_column_name])
   }
   if (!is.element(nuclei_count_column_name, colnames(targetAnnotations))) {
     warning("The value entered for nuclei_count_column_name was not a column header in the target annotations. 
