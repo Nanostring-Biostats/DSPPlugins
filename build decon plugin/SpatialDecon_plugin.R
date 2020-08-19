@@ -148,7 +148,7 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
   # reverse decon summary stats of gene dependency on cell mixing:
   sumstats <- cbind(rdecon$cors, rdecon$resid.sd)
   colnames(sumstats) <- c("cor w cell mixing", "residual SD from cell mixing")
-  write.csv(sumstats, file = file.path(outputFolder, "reverse_decon_residuals.csv", fsep = .Platform$file.sep))
+  write.csv(sumstats, file = file.path(outputFolder, "gene_dependence_on_cell_mixing.csv", fsep = .Platform$file.sep))
 
   #### results figures: ---------------------------------------------
 
