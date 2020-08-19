@@ -24,7 +24,7 @@
 #   You can supply your own cell profile matrix, or you can download a pre-specified one from
 #   https://github.com/Nanostring-Biostats/Extensions/cell-profile-library
 # Instructions: uploading to DSPDA:
-# ______________
+#   Upload this csv file as you would a plugin .R file. 
 cell_profile_filename <- "safeTME-for-tumor-immune.csv"
 
 # if you have segments selected to be pure tumor, free of immune and stroma,
