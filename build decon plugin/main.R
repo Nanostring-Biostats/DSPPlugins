@@ -82,7 +82,7 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
     cell_counts <- as.numeric(segmentAnnotations[, nuclei_count_column_name])
   }
   if (!is.element(nuclei_count_column_name, colnames(segmentAnnotations))) {
-    warning("The value entered for nuclei_count_column_name was not a column header in the target annotations. 
+    warning("The value entered for nuclei_count_column_name was not a column header in the segment annotations. 
             Results will not be output on the scale of cell counts; just in abundance scores and proportions.")
   }
 
