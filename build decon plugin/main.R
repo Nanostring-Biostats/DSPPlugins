@@ -44,6 +44,9 @@ nuclei_count_column_name <- "AOINucleiCount"
 merges <- list()
 
 
+# define variables to show in heatmaps:
+variables_to_plot = c("ScanName", "SegmentName")
+
 ##########################################################
 #### end of arguments. DO NOT CHANGE CODE BELOW HERE  ####
 ##########################################################
@@ -53,13 +56,13 @@ library(pheatmap)
 library(viridis)
 
 main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
-
+  
   #### preliminaries ----------------------
   dataset <- as.matrix(dataset)
-
+  
   # access cell profile matrix file:
   X <- as.matrix(read.csv(cell_profile_filename, header = T, row.names = 1))
-
+  
   # parse merges:
   merges.full <- NULL
   if (length(merges) > 0) {
@@ -75,7 +78,7 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
       merges.full[[name]] <- merges[[name]]
     }
   }
-
+  
   # parse nuclei column
   cell_counts <- NULL
   if (is.element(nuclei_count_column_name, colnames(segmentAnnotations))) {
@@ -85,7 +88,7 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
     warning("The value entered for nuclei_count_column_name was not a column header in the segment annotations. 
             Results will not be output on the scale of cell counts; just in abundance scores and proportions.")
   }
-
+  
   # parse pure tumor column
   is_pure_tumor <- NULL
   if (is.element(pure_tumor_column_name, colnames(segmentAnnotations))) {
@@ -95,21 +98,21 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
   if (!is.element(pure_tumor_column_name, colnames(segmentAnnotations)) & (pure_tumor_column_name != "none")) {
     warning("The value entered for pure_tumor_column_name was not a column header in the segment annotations.")
   }
-
+  
   # format data for spatialdecon:
   norm <- dataset[targetAnnotations$TargetGUID, segmentAnnotations$segmentID]
   rownames(norm) <- targetAnnotations$TargetName
   colnames(norm) <- segmentAnnotations$segmentDisplayName
-
+  
   # calculate background:
   bg <- derive_GeoMx_background(
     norm = norm,
     probepool = targetAnnotations$ProbePool,
     negnames = targetAnnotations$TargetName[targetAnnotations$CodeClass == "Negative"]
   )
-
-
-
+  
+  
+  
   #### run decon: ----------------------------------------
   # decon:
   res <- spatialdecon(
@@ -120,15 +123,15 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
     cell_counts = cell_counts,
     cellmerges = merges.full
   )
-
+  
   # reverse decon:
   rdecon <- reverseDecon(
     norm = norm,
     beta = res$beta,
     epsilon = NULL
   )
-
-
+  
+  
   #### write results files: ---------------------------------------------
   write.csv(res$beta, file = file.path(outputFolder, "cell_abundance_scores.csv", fsep = .Platform$file.sep))
   write.csv(res$p, file = file.path(outputFolder, "cell_pvalues.csv", fsep = .Platform$file.sep))
@@ -141,38 +144,93 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
   if (is.element("cell.counts.granular", names(res))) {
     write.csv(res$cell.counts.granular, file = file.path(outputFolder, "cell_count_estimates_granular.csv", fsep = .Platform$file.sep))
   }
-
+  
   # reverse decon resids
   write.csv(rdecon$resids, file = file.path(outputFolder, "reverse_decon_residuals.csv", fsep = .Platform$file.sep))
-
+  
   # reverse decon summary stats of gene dependency on cell mixing:
   sumstats <- cbind(rdecon$cors, rdecon$resid.sd)
   colnames(sumstats) <- c("cor w cell mixing", "residual SD from cell mixing")
   write.csv(sumstats, file = file.path(outputFolder, "gene_dependence_on_cell_mixing.csv", fsep = .Platform$file.sep))
-
+  
   #### results figures: ---------------------------------------------
-
+  
+  # parse the argument for variables to plot:
+  if (length(setdiff(variables_to_plot, colnames(segmentAnnotations))) > 0) {
+    warning(paste0("the variables_to_plot values", 
+                   paste0(setdiff(variables_to_plot, colnames(segmentAnnotations)), collapse =", "),
+                   " are not present in the segmentAnnotations"))
+  }
+  variables_to_plot <- intersect(variables_to_plot, colnames(segmentAnnotations))
+  heatmapannot = NULL
+  if (length(variables_to_plot) > 0) {
+    heatmapannot <- segmentAnnotations[, variables_to_plot, drop = FALSE]
+    rownames(heatmapannot) = segmentAnnotations$segmentDisplayName
+  }
+  
   # show just the original cells, not tumor abundance estimates derived from the is.pure.tumor argument:
   cells.to.plot <- intersect(rownames(res$beta), union(colnames(X), names(merges.full)))
-
-  # heatmap
+  
+  #### heatmaps
+  # abundances:
+  thresh = signif(quantile(res$beta, 0.95), 2)
+  p1 = pheatmap(pmin(res$beta[cells.to.plot, ], thresh), 
+                col = colorRampPalette(c("white", "darkblue"))(100),
+                fontsize_col = 4,
+                annotation_col = heatmapannot,
+                main = paste0("Abundance scores, truncated above ", thresh)
+  )
   pdf(file = file.path(outputFolder, "cell_abundance_heatmap.pdf", fsep = .Platform$file.sep), width = 12)
-  pheatmap(res$beta[cells.to.plot, ],
-    col = viridis_pal(option = "B")(100),
-    fontsize_col = 4
+  print(p1)
+  dev.off()
+  
+  # proportions:
+  p2 = pheatmap(res$prop_of_nontumor[cells.to.plot, ],
+                col = viridis_pal(option = "B")(100),
+                fontsize_col = 4,
+                annotation_col = heatmapannot
+  )
+  pdf(file = file.path(outputFolder, "cell_proportion_heatmap.pdf", fsep = .Platform$file.sep), width = 12)
+  print(p2)
+  dev.off()
+  
+  #### barplots
+  
+  # choose an appropriate label size:
+  namescex = 1
+  if (ncol(res$beta) > 20) {
+    namescex = 0.75
+  }
+  if (ncol(res$beta) > 40) {
+    namescex = 0.5
+  }
+  if (ncol(res$beta) > 80) {
+    namescex = 0.25
+  }
+  
+  
+  
+  # abundances:
+  pdf(file = file.path(outputFolder, "cell_abundance_barplot.pdf", fsep = .Platform$file.sep), width = 12)
+  layout(mat = matrix(1:2, 1), widths = c(10,3))
+  par(mar = c(15, 5, 2, 0))
+  TIL_barplot(
+    mat = res$beta[cells.to.plot, p1$tree_col$order],
+    draw_legend = TRUE,
+    ylab = "Abundance scores",
+    cex.names = namescex
   )
   dev.off()
-
-  # barplot
-  pdf(file = file.path(outputFolder, "cell_abundance_barplot.pdf", fsep = .Platform$file.sep), width = 12)
+  
+  # proportions:
+  pdf(file = file.path(outputFolder, "cell_proportion_barplot.pdf", fsep = .Platform$file.sep), width = 12)
+  layout(mat = matrix(1:2, 1), widths = c(10,3))
   par(mar = c(15, 5, 2, 1))
   TIL_barplot(
-    mat = res$beta[cells.to.plot, ],
-    draw_legend = TRUE
+    mat = res$prop_of_nontumor[cells.to.plot, p2$tree_col$order],
+    draw_legend = TRUE,
+    ylab = "Proportions",
+    cex.names = namescex
   )
   dev.off()
 }
-
-
-
-#### below here: all the functions of the SpatialDecon package ####
