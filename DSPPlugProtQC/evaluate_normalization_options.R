@@ -13,7 +13,7 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
   colorby <- c("ScanName", "SegmentName")
 
   #  define the color scheme:
-  cols <- assign_colors(annot = segmentAnnotations[, colorby, drop = F])
+  cols <- assign_colors(annot = segmentAnnotations[, colorby, drop = FALSE])
 
   # identify control probes:
   igg.names <- targetAnnotations$TargetGUID[targetAnnotations$CodeClass == "Negative"]
@@ -117,7 +117,7 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
 qc_protein_signal <- function(raw, neg.names, targetAnnotations = NULL, neg.thresh = 20, qccols = c("#00008B80", "#FF000080")) {
 
   # estimate background:
-  negfactor <- pmax(colMeans(raw[neg.names, , drop = F]), 1)
+  negfactor <- pmax(colMeans(raw[neg.names, , drop = FALSE]), 1)
 
   # calc snr
   snr <- sweep(raw, 2, negfactor, "/")
@@ -132,7 +132,7 @@ qc_protein_signal <- function(raw, neg.names, targetAnnotations = NULL, neg.thre
   par(mar = c(11, 4, 2, 1))
   boxplot(t(log2(snr[o, ])),
     las = 2,
-    outline = F,
+    outline = FALSE,
     ylim = range(log2(snr)),
     names = protnames[o],
     ylab = "Log2 signal-to-background ratio",
@@ -206,9 +206,9 @@ assign_colors <- function(annot) {
   cols <- list()
   colorby <- colnames(annot)
   for (varname in colorby) {
-    levels <- as.character(unique(annot[, varname]))
-    cols[[varname]] <- colvec[1:length(levels)]
-    names(cols[[varname]]) <- levels
+    varlevels <- as.character(unique(annot[, varname]))
+    cols[[varname]] <- colvec[1:length(varlevels)]
+    names(cols[[varname]]) <- varlevels
     # remove the used colors from further consideration:
     colvec <- setdiff(colvec, cols[[varname]]) # (disabling this so the more bold colors are re-used)
   }
@@ -230,10 +230,10 @@ compute_normalization_factors <- function(segmentAnnotations, targetAnnotations,
 
   # igg and hk factors:
   if (length(igg.names) > 1) {
-    igg.factor <- exp(colMeans(log(pmax(dataset[igg.names, , drop = F], 1))))
+    igg.factor <- exp(colMeans(log(pmax(dataset[igg.names, , drop = FALSE], 1))))
   }
   if (length(hk.names) > 1) {
-    hk.factor <- exp(colMeans(log(pmax(dataset[hk.names, , drop = F], 1))))
+    hk.factor <- exp(colMeans(log(pmax(dataset[hk.names, , drop = FALSE], 1))))
   }
 
   # area and nuclei factors:
@@ -285,7 +285,7 @@ plot_concordance <- function(mat, col = rgb(0, 0, 0, 0.5),
     usr <- par("usr")
     on.exit(par(usr))
     par(usr = c(0, 1, 0, 1))
-    pairwise.stat <- sd(log2(pmax(x, 1)) - log2(pmax(y, 1)), na.rm = T)
+    pairwise.stat <- sd(log2(pmax(x, 1)) - log2(pmax(y, 1)), na.rm = TRUE)
     txt <- round(pairwise.stat, 2)
     txt <- paste0(prefix, txt)
     legend("center", legend = txt, box.col = "white", cex = 1.5)
