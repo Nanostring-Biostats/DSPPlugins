@@ -173,12 +173,12 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
   
   #### heatmaps
   # abundances:
-  thresh = signif(quantile(res$beta, 0.95), 2)
+  thresh = signif(quantile(res$beta, 0.97), 2)
   p1 = pheatmap(pmin(res$beta[cells.to.plot, ], thresh), 
                 col = colorRampPalette(c("white", "darkblue"))(100),
                 fontsize_col = 4,
                 annotation_col = heatmapannot,
-                main = paste0("Abundance scores, truncated above ", thresh)
+                main = paste0("Abundance scores, truncated above at ", thresh)
   )
   pdf(file = file.path(outputFolder, "cell_abundance_heatmap.pdf", fsep = .Platform$file.sep), width = 12)
   print(p1)
