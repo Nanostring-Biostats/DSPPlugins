@@ -152,5 +152,5 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
   
   # Save table with plot locations
   write.csv(segmentAnnotations, file = file.path(outputFolder, "samp annot.csv", fsep = .Platform$file.sep),
-            row.names = F)
+            row.names = FALSE)
 }
