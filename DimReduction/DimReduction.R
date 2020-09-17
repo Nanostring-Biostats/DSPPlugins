@@ -22,6 +22,7 @@ library(RColorBrewer)
 
 # main function
 main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
+  # Step 1: format dataset
   # Make a table to check the passed dataframes from DSP
   targetCountMatrix <- dataset
   
@@ -39,14 +40,16 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
                                                          targetAnnotations[ , "TargetGUID"]),
                                                    "TargetName"]
   
-  # Calculate tSNE & UMAP dimensions
+  # Step 2:
+  # Calculate PCA, tSNE, or UMAP dimensions
   if(plot_type == "UMAP") {
     set.seed(seed = 28502)
     umap_data <- umap(t(log2(targetCountMatrix)))
     segmentAnnotations$Dim1 <- umap_data$layout[, 1]
     segmentAnnotations$Dim2 <- umap_data$layout[, 2]
   } else if(plot_type == "tSNE") {
-    # prevent perplexity errors by automatically setting it to near max possible
+    # prevent perplexity errors by automatically setting it to near, but not at,
+    # max possible
     tSNE_perplexity <- floor((ncol(targetCountMatrix)-1)*.2) 
     set.seed(seed = 28502)
     tsne_data <- Rtsne(t(log2(targetCountMatrix)), perplexity = tSNE_perplexity)
@@ -75,6 +78,7 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
     stop('Shape parameter not found in Segment Annotations\n')
   }
   
+  # Step 3: Graph data
   # graph setup
   plt <- ggplot(segmentAnnotations,
                 aes(x = Dim1, y = Dim2)) + 
@@ -109,11 +113,35 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
     plt <- plt +
       scale_color_manual(values = cols)
   } else {
-    plt <- plt +
-      scale_color_gradient2(low = 'darkblue', mid = 'gray', high = 'orange2',
-                            midpoint = median(segmentAnnotations[, plot_color]))
+    # for target based coloring, if set to qualitative palette, use 
+    #    darkblue -> gray -> orange instead
+    if(brewer.pal.infp[plot_color_theme, 2] == 'qual') {
+      plt <- plt +
+        scale_color_gradient2(low = 'darkblue', mid = 'gray', high = 'orange2',
+                              midpoint = median(segmentAnnotations[, plot_color]))
+    } else {
+      # otherwise grab the palette, and determine where to replace the 'light'
+      # color with gray instead for visualization on a white background
+      cols <- brewer.pal(n = brewer.pal.info[plot_color_theme, 1],
+                         name = plot_color_theme)
+      if(brewer.pal.info[plot_color_theme, 2] == 'seq') {
+        # if sequential palette use gray -> color
+        # use 1 away from ends of palettes as these are brighter than the final colors
+        plt <- plt +
+          scale_color_gradient(low = 'gray', high = cols[length(cols)-1], 
+                                midpoint = median(segmentAnnotations[, plot_color]))
+        
+      } else {
+        # if divergent use color1 -> gray -> color2
+        plt <- plt +
+          scale_color_gradient2(low = cols[2], mid = 'gray', high = cols[length(cols)-1],
+                                midpoint = median(segmentAnnotations[, plot_color]))
+        
+      }
+    }
   }
   
+  # Step 4: Save Files
   # Save File      
   ggsave(filename = paste0(plot_type, "_with_",
                            plot_color, "_and_",
@@ -150,7 +178,9 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
            path = outputFolder)
   }
   
-  # Save table with plot locations
-  write.csv(segmentAnnotations, file = file.path(outputFolder, "samp annot.csv", fsep = .Platform$file.sep),
+  # Save CSV table with plot dimension data for re-graphing
+  write.csv(segmentAnnotations,
+            file = file.path(outputFolder, paste0("Annotations with", plot_type, " Dims.csv"),
+                             fsep = .Platform$file.sep),
             row.names = FALSE)
 }
