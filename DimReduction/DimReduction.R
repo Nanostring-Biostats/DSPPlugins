@@ -128,8 +128,7 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
         # if sequential palette use gray -> color
         # use 1 away from ends of palettes as these are brighter than the final colors
         plt <- plt +
-          scale_color_gradient(low = 'gray', high = cols[length(cols)-1], 
-                                midpoint = median(segmentAnnotations[, plot_color]))
+          scale_color_gradient(low = 'gray', high = cols[length(cols)-1])
         
       } else {
         # if divergent use color1 -> gray -> color2
