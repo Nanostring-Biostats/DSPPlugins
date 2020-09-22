@@ -102,7 +102,7 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
   # format data for spatialdecon:
   norm <- dataset[targetAnnotations$TargetGUID, segmentAnnotations$segmentID]
   rownames(norm) <- targetAnnotations$TargetName
-  #colnames(norm) <- segmentAnnotations$segmentDisplayName
+  colnames(norm) <- segmentAnnotations$segmentDisplayName
 
   # calculate background:
   bg <- derive_GeoMx_background(
@@ -136,14 +136,15 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
   write.csv(res$beta, file = file.path(outputFolder, "cell_abundance_scores.csv", fsep = .Platform$file.sep))
   write.csv(res$p, file = file.path(outputFolder, "cell_pvalues.csv", fsep = .Platform$file.sep))
   if (is.element("cell.counts", names(res))) {
-    write.csv(res$cell.counts$cell.counts, file = file.path(outputFolder, "cell_count_estimates.csv", fsep = .Platform$file.sep))
+    write.csv(res$cell.counts, file = file.path(outputFolder, "cell_count_estimates.csv", fsep = .Platform$file.sep))
   }
   if (is.element("beta.granular", names(res))) {
     write.csv(res$beta.granular, file = file.path(outputFolder, "cell_abundance_scores_granular.csv", fsep = .Platform$file.sep))
   }
   if (is.element("cell.counts.granular", names(res))) {
-    write.csv(res$cell.counts.granular$cell.counts, file = file.path(outputFolder, "cell_count_estimates_granular.csv", fsep = .Platform$file.sep))
+    write.csv(res$cell.counts.granular, file = file.path(outputFolder, "cell_count_estimates_granular.csv", fsep = .Platform$file.sep))
   }
+
   # reverse decon resids
   write.csv(rdecon$resids, file = file.path(outputFolder, "reverse_decon_residuals.csv", fsep = .Platform$file.sep))
 
@@ -166,9 +167,12 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
   heatmapannot <- NULL
   if (length(variables_to_plot) > 0) {
     heatmapannot <- segmentAnnotations[, variables_to_plot, drop = FALSE]
-    #rownames(heatmapannot) <- segmentAnnotations$segmentDisplayName
+    rownames(heatmapannot) <- segmentAnnotations$segmentDisplayName
   }
 
+  cat(variables_to_plot, file = paste0(outputFolder, "/variables_to_plot.txt"))
+  cat(str(heatmapannot), file = paste0(outputFolder, "/heatmapannot.txt"))
+  
   # show just the original cells, not tumor abundance estimates derived from the is.pure.tumor argument:
   cells.to.plot <- intersect(rownames(res$beta), union(colnames(X), names(merges.full)))
 
