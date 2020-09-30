@@ -1,7 +1,8 @@
 ### functions to draw plots helping select normalization factors:
 # note: this code assumes the input of ERCC-normalized data for nCounter output
 
-
+# Please enter additional factor(s) you would like to plot:
+plot_factor <- c("Enter factor Here" ,"etc")
 
 # main function called by DSP-DA:
 main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
@@ -9,8 +10,8 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
   #### preliminaries ----------------------------------
 
   # which columns of segmentAnnotations to color plots by:
-  # colorby = choose_annotation_columns(annot = segmentAnnotations)
-  colorby <- c("ScanName", "SegmentName")
+       colorby <- intersect(c("ScanName", "SegmentName", plot_factor),
+                       colnames(segmentAnnotations))
 
   #  define the color scheme:
   cols <- assign_colors(annot = segmentAnnotations[, colorby, drop = FALSE])
