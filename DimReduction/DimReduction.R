@@ -115,7 +115,7 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
   } else {
     # for target based coloring, if set to qualitative palette, use 
     #    darkblue -> gray -> orange instead
-    if(brewer.pal.infp[plot_color_theme, 2] == 'qual') {
+    if(brewer.pal.info[plot_color_theme, 2] == 'qual') {
       plt <- plt +
         scale_color_gradient2(low = 'darkblue', mid = 'gray', high = 'orange2',
                               midpoint = median(segmentAnnotations[, plot_color]))
