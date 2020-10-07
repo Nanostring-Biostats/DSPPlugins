@@ -5,8 +5,8 @@ plot_type <- "tSNE"
 # Plot Parameters
 plot_color = "VEGFA" # tag, factor, or target
 plot_shape = "SegmentName" # tag, or factor
-plot_color_theme = "Set1" # color palette
-
+plot_color_theme = "RdBu" # color palette
+reverse_theme = TRUE # reverse palette color
 
 ##################
 # Execution Code #
@@ -110,6 +110,9 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
                          name = plot_color_theme)
       cols <- colorRampPalette(cols)(n_cols)
     }
+    if(reverse_theme) {
+      cols <- rev(cols)
+    }
     plt <- plt +
       scale_color_manual(values = cols)
   } else {
@@ -124,9 +127,11 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
     } else {
       # otherwise grab the palette, and determine where to replace the 'light'
       # color with gray instead for visualization on a white background
-      cols <- brewer.pal(name = clr_name,
-                         n = brewer.pal.info[plot_color_theme, 1],
+      cols <- brewer.pal(n = brewer.pal.info[plot_color_theme, 1],
                          name = plot_color_theme)
+      if(reverse_theme) {
+        cols <- rev(cols)
+      }
       if(brewer.pal.info[plot_color_theme, 2] == 'seq') {
         # if sequential palette use gray -> color
         # use 1 away from ends of palettes as these are brighter than the final colors
