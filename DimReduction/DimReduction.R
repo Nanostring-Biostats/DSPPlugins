@@ -42,10 +42,18 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
   
   # Step 2:
   # Calculate PCA, tSNE, or UMAP dimensions
-  segmentAnnotations <- calc_DR(plot_type = plot_type,
-                                targetCountMatrix = targetCountMatrix,
-                                segmentAnnotations = segmentAnnotations)
+  DR_ann <- calc_DR(plot_type = plot_type,
+                    targetCountMatrix = targetCountMatrix,
+                    segmentAnnotations = segmentAnnotations)
+  segmentAnnotations <- DR_ann$annot
+  if(plot_type == "PCA") {
+    var_est <- DR_ann$var
+  } else {
+    var_est <- NULL
+  }
+  rm("DR_ann")
   
+  # Step 3: Graph data
   # if color or shape is a gene symbol add it to the annotations for plotting
   if(plot_color %in% rownames(targetCountMatrix)) {
     segmentAnnotations[, plot_color] <- unlist(log2(targetCountMatrix[plot_color, ]))
@@ -53,13 +61,11 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
   } else {
     colType <- 'Annot'
   }
-  
   # Error catch - shape must be an annotation factor or tag
   if(!plot_shape %in% colnames(segmentAnnotations)) {
     stop('Shape parameter not found in Segment Annotations\n')
   }
   
-  # Step 3: Graph data
   # graph setup
   plt <- ggplot(segmentAnnotations,
                 aes(x = Dim1, y = Dim2)) + 
@@ -148,7 +154,8 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
   if(plot_type == "PCA") {
     v_dat <- data.frame(Variance = 100*cumsum(var_est),
                         PC = 1:length(var_est))
-    vplt <- ggplot(v_dat[1:min(15, nrow(v_dat)), ], aes(x = PC, y = Variance, fill = Variance)) +
+    vplt <- ggplot(v_dat[1:min(15, nrow(v_dat)), ], 
+                   aes(x = PC, y = Variance, fill = Variance)) +
       geom_bar(stat = 'identity') +
       geom_hline(yintercept = c(25,50,75), lty = 'dashed', color = 'black') +
       theme_bw(base_size = 15) +
@@ -206,5 +213,32 @@ calc_DR <- function(plot_type = NULL,
   } else {
     stop('Error: Additional plot types not yet supported\n')
   }
-  return(segmentAnnotations)
+  rtn <- list(annot = segmentAnnotations)
+  if(plot_type == "PCA") {
+    rtn <- c(rtn, list(var = var_est))
+  }
+  return(rtn)
+}
+
+# plot_DR: plot dim reduction based on above variables
+# inputs: targetCountMatrix - data to work from
+#         segmentAnnotations - annotations to use
+#         plot_type - which plot to generate
+#         dims - names of dims to plot (x, y)
+#         plot_color - tag, factor, or target
+#         plot_shape - tag, or factor
+#         plot_color_theme - color palette
+#         reverse_theme = TRUE # reverse palette color
+#         var_est - variance estimates for PCA
+
+plot_DR <- function(targetCountMatrix = NULL,
+                    segmentAnnotations = NULL,
+                    plot_type = NULL,
+                    dims = c("Dim1", "Dim2"),
+                    plot_color = NULL,
+                    plot_shape = NULL,
+                    plot_color_theme = NULL,
+                    reverse_theme = FALSE,
+                    var_est = NULL) {
+  # pull from above
 }
