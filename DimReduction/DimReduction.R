@@ -42,28 +42,9 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
   
   # Step 2:
   # Calculate PCA, tSNE, or UMAP dimensions
-  if(plot_type == "UMAP") {
-    set.seed(seed = 28502)
-    umap_data <- umap(t(log2(targetCountMatrix)))
-    segmentAnnotations$Dim1 <- umap_data$layout[, 1]
-    segmentAnnotations$Dim2 <- umap_data$layout[, 2]
-  } else if(plot_type == "tSNE") {
-    # prevent perplexity errors by automatically setting it to near, but not at,
-    # max possible
-    tSNE_perplexity <- floor((ncol(targetCountMatrix)-1)*.2) 
-    set.seed(seed = 28502)
-    tsne_data <- Rtsne(t(log2(targetCountMatrix)), perplexity = tSNE_perplexity)
-    segmentAnnotations$Dim1 <- tsne_data$Y[, 1]
-    segmentAnnotations$Dim2 <- tsne_data$Y[, 2]
-  } else if(plot_type == "PCA") {
-    pca_data <- prcomp(t(log2(targetCountMatrix)))
-    segmentAnnotations$Dim1 <- pca_data$x[, 1]
-    segmentAnnotations$Dim2 <- pca_data$x[, 2]
-    segmentAnnotations$Dim3 <- pca_data$x[, 3]
-    var_est <- summary(pca_data)$importance[2, ]
-  } else {
-    stop('Error: Additional plot types not yet supported\n')
-  }
+  segmentAnnotations <- calc_DR(plot_type = plot_type,
+                                targetCountMatrix = targetCountMatrix,
+                                segmentAnnotations = segmentAnnotations)
   
   # if color or shape is a gene symbol add it to the annotations for plotting
   if(plot_color %in% rownames(targetCountMatrix)) {
@@ -192,4 +173,38 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
             file = file.path(outputFolder, paste0("Annotations with", plot_type, " Dims.csv"),
                              fsep = .Platform$file.sep),
             row.names = FALSE)
+}
+
+##### Helper Functions #####
+
+# calc_DR: calculate dimension reduction values
+# inputs: plot_type - which plot to generate
+#         targetCountMatrix - data to work from
+#         segmentAnnotations - annotations to use
+calc_DR <- function(plot_type = NULL,
+                    targetCountMatrix = NULL,
+                    segmentAnnotations = NULL) {
+  if(plot_type == "UMAP") {
+    set.seed(seed = 28502)
+    umap_data <- umap(t(log2(targetCountMatrix)))
+    segmentAnnotations$Dim1 <- umap_data$layout[, 1]
+    segmentAnnotations$Dim2 <- umap_data$layout[, 2]
+  } else if(plot_type == "tSNE") {
+    # prevent perplexity errors by automatically setting it to near, but not at,
+    # max possible
+    tSNE_perplexity <- floor((ncol(targetCountMatrix)-1)*.2) 
+    set.seed(seed = 28502)
+    tsne_data <- Rtsne(t(log2(targetCountMatrix)), perplexity = tSNE_perplexity)
+    segmentAnnotations$Dim1 <- tsne_data$Y[, 1]
+    segmentAnnotations$Dim2 <- tsne_data$Y[, 2]
+  } else if(plot_type == "PCA") {
+    pca_data <- prcomp(t(log2(targetCountMatrix)))
+    segmentAnnotations$Dim1 <- pca_data$x[, 1]
+    segmentAnnotations$Dim2 <- pca_data$x[, 2]
+    segmentAnnotations$Dim3 <- pca_data$x[, 3]
+    var_est <- summary(pca_data)$importance[2, ]
+  } else {
+    stop('Error: Additional plot types not yet supported\n')
+  }
+  return(segmentAnnotations)
 }
