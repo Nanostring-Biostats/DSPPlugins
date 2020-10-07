@@ -115,25 +115,30 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
   } else {
     # for target based coloring, if set to qualitative palette, use 
     #    darkblue -> gray -> orange instead
+    clr_name <- paste0(plot_color, ',\nLog2 Counts')
     if(brewer.pal.info[plot_color_theme, 2] == 'qual') {
       plt <- plt +
-        scale_color_gradient2(low = 'darkblue', mid = 'gray', high = 'orange2',
+        scale_color_gradient2(name = clr_name,
+                              low = 'darkblue', mid = 'gray', high = 'orange2',
                               midpoint = median(segmentAnnotations[, plot_color]))
     } else {
       # otherwise grab the palette, and determine where to replace the 'light'
       # color with gray instead for visualization on a white background
-      cols <- brewer.pal(n = brewer.pal.info[plot_color_theme, 1],
+      cols <- brewer.pal(name = clr_name,
+                         n = brewer.pal.info[plot_color_theme, 1],
                          name = plot_color_theme)
       if(brewer.pal.info[plot_color_theme, 2] == 'seq') {
         # if sequential palette use gray -> color
         # use 1 away from ends of palettes as these are brighter than the final colors
         plt <- plt +
-          scale_color_gradient(low = 'gray', high = cols[length(cols)-1])
+          scale_color_gradient(name = clr_name,
+                               low = 'gray', high = cols[length(cols)-1])
         
       } else {
         # if divergent use color1 -> gray -> color2
         plt <- plt +
-          scale_color_gradient2(low = cols[2], mid = 'gray', high = cols[length(cols)-1],
+          scale_color_gradient2(name = clr_name,
+                                low = cols[2], mid = 'gray', high = cols[length(cols)-1],
                                 midpoint = median(segmentAnnotations[, plot_color]))
         
       }
@@ -165,7 +170,7 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
                          limits = c(0, 100)) +
       scale_x_continuous(expand = expansion(mult = 0), limits = c(0, 16), breaks = seq(1,15,1)) +
       scale_fill_gradient(low = 'darkgray', high = 'dodgerblue2', limits = c(0,100)) +
-      labs(x = 'Principal Component, #', y = 'Cumulative Variance Explained') +
+      labs(x = 'Principal Component #', y = 'Cumulative Variance Explained') +
       theme(legend.position = "none")
     ggsave(filename = "PCA_VarianceExplained.png",
            plot = vplt,
