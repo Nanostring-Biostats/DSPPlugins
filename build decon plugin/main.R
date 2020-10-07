@@ -167,6 +167,7 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
   heatmapannot <- NULL
   if (length(variables_to_plot) > 0) {
     heatmapannot <- segmentAnnotations[, variables_to_plot, drop = FALSE]
+    rownames(heatmapannot) = colnames(res$beta)
     #rownames(heatmapannot) <- segmentAnnotations$segmentDisplayName
   }
 
