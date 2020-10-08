@@ -8,15 +8,15 @@ plot_shape = "SegmentName" # tag, or factor
 plot_font = list(family = "sans", size = 15)
 # shape & color can be set to NULL
 # font families include sans, serif, mono and
-#  may include specifically named fonts, but 
-#  these may not always render properly.
+# may include specifically named fonts, but 
+# these may not always render properly.
 
 # Plot colors
 plot_color_theme = "RdBu"
 reverse_theme = TRUE # reverse palette color
 # Set to plot_color_theme = NULL if you'd 
 # prefer to set your colors manually below
-# (color name or hexadecimal (e.g. "#ABABAB"))
+# (R color name or hexadecimal (e.g. "#ABABAB"))
 plot_colors = c("orange2", "black", "purple2")
 color_levels = c("High", "Mid", "Low")
 
@@ -60,13 +60,7 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
                     targetCountMatrix = targetCountMatrix,
                     segmentAnnotations = segmentAnnotations)
   segmentAnnotations <- DR_ann$annot
-  if(plot_type == "PCA") {
-    var_est <- DR_ann$var
-  } else {
-    var_est <- NULL
-  }
-  rm("DR_ann")
-  
+
   # Step 3: Graph data
   # if color or shape is a gene symbol add it to the annotations for plotting
   if(plot_color %in% rownames(targetCountMatrix)) {
@@ -167,7 +161,8 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
   
   #Variance Estimate Plot
   if(plot_type == "PCA") {
-    v_dat <- data.frame(Variance = 100*cumsum(var_est),
+    var_est <- summary(DR_ann$data)$importance[3, ]
+    v_dat <- data.frame(Variance = 100*var_est,
                         PC = 1:length(var_est))
     vplt <- ggplot(v_dat[1:min(15, nrow(v_dat)), ], 
                    aes(x = PC, y = Variance, fill = Variance)) +
@@ -208,27 +203,26 @@ calc_DR <- function(plot_type = NULL,
                     segmentAnnotations = NULL) {
   if(plot_type == "UMAP") {
     set.seed(seed = 28502)
-    umap_data <- umap(t(log2(targetCountMatrix)))
-    segmentAnnotations$Dim1 <- umap_data$layout[, 1]
-    segmentAnnotations$Dim2 <- umap_data$layout[, 2]
+    dr_data <- umap(t(log2(targetCountMatrix)))
+    segmentAnnotations$Dim1 <- dr_data$layout[, 1]
+    segmentAnnotations$Dim2 <- dr_data$layout[, 2]
   } else if(plot_type == "tSNE") {
     # prevent perplexity errors by automatically setting it to near, but not at,
     # max possible
     tSNE_perplexity <- floor((ncol(targetCountMatrix)-1)*.2) 
     set.seed(seed = 28502)
-    tsne_data <- Rtsne(t(log2(targetCountMatrix)), perplexity = tSNE_perplexity)
-    segmentAnnotations$Dim1 <- tsne_data$Y[, 1]
-    segmentAnnotations$Dim2 <- tsne_data$Y[, 2]
+    dr_data <- Rtsne(t(log2(targetCountMatrix)), perplexity = tSNE_perplexity)
+    segmentAnnotations$Dim1 <- dr_data$Y[, 1]
+    segmentAnnotations$Dim2 <- dr_data$Y[, 2]
   } else if(plot_type == "PCA") {
-    pca_data <- prcomp(t(log2(targetCountMatrix)))
-    segmentAnnotations$Dim1 <- pca_data$x[, 1]
-    segmentAnnotations$Dim2 <- pca_data$x[, 2]
-    segmentAnnotations$Dim3 <- pca_data$x[, 3]
-    var_est <- summary(pca_data)$importance[2, ]
+    dr_data <- prcomp(t(log2(targetCountMatrix)))
+    segmentAnnotations$Dim1 <- dr_data$x[, 1]
+    segmentAnnotations$Dim2 <- dr_data$x[, 2]
+    segmentAnnotations$Dim3 <- dr_data$x[, 3]
   } else {
     stop('Error: Additional plot types not yet supported\n')
   }
-  rtn <- list(annot = segmentAnnotations)
+  rtn <- list(annot = segmentAnnotations, data = dr_data)
   if(plot_type == "PCA") {
     rtn <- c(rtn, list(var = var_est))
   }
