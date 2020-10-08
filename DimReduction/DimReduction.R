@@ -86,8 +86,9 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
     geom_point(aes_string(shape = plot_shape,
                           color = plot_color),
                size = 3, alpha = 0.8) +
-    theme_bw(base_size = 15) +
-    theme(aspect.ratio = 1) 
+    theme_bw(base_size = plot_font$size) +
+    theme(aspect.ratio = 1,
+          text = element_text(family = plot_font$family)) 
   
   # Add variance estimates to PCA plot
   if(plot_type == "PCA") {
