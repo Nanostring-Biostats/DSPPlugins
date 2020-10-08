@@ -3,10 +3,24 @@ plot_type <- "tSNE"
 # Options: tSNE, UMAP, PCA
 
 # Plot Parameters
-plot_color = "VEGFA" # tag, factor, or target
+plot_color = "CD68" # tag, factor, or target
 plot_shape = "SegmentName" # tag, or factor
-plot_color_theme = "RdBu" # color palette
+plot_font = list(family = "sans", size = 15)
+# shape & color can be set to NULL
+# font families include sans, serif, mono and
+#  may include specifically named fonts, but 
+#  these may not always render properly.
+
+# Plot colors
+plot_color_theme = "RdBu"
 reverse_theme = TRUE # reverse palette color
+# Set to plot_color_theme = NULL if you'd 
+# prefer to set your colors manually below
+# (color name or hexadecimal (e.g. "#ABABAB"))
+plot_colors = c("orange2", "black", "purple2")
+color_levels = c("High", "Mid", "Low")
+
+#plot_color_theme = "RdBu" # color palette
 
 ##################
 # Execution Code #
@@ -237,6 +251,7 @@ plot_DR <- function(targetCountMatrix = NULL,
                     dims = c("Dim1", "Dim2"),
                     plot_color = NULL,
                     plot_shape = NULL,
+                    plot_font = list(family = "Arial"),
                     plot_color_theme = NULL,
                     reverse_theme = FALSE,
                     var_est = NULL) {
