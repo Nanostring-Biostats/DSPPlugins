@@ -3,23 +3,26 @@ plot_type <- "tSNE"
 # Options: tSNE, UMAP, PCA
 
 # Plot Parameters
-plot_color = "CD68" # tag, factor, or target
-plot_shape = "SegmentName" # tag, or factor
+color_by = "MSI" # tag, factor, or target
+shape_by = "SegmentName" # tag, or factor
 plot_font = list(family = "sans", size = 15)
 # shape & color can be set to NULL
 # font families include sans, serif, mono and
 # may include specifically named fonts, but 
 # these may not always render properly.
 
-# Plot colors
-plot_color_theme = "RdBu"
-reverse_theme = TRUE # reverse palette color
+# Plot color options
+plot_colors = list("orange2", "gray", "darkblue")
+color_levels = c("High", "Mid", "Low")
+# color_levels must match values in the color_by 
+# column in the annotations file when using a tag
+# or a factor. For Targets use "High", "Low" and "Mid".
+#   "Mid" is optional
+
+#plot_color_theme = "RdBu"
+#reverse_theme = TRUE # reverse palette color
 # Set to plot_color_theme = NULL if you'd 
 # prefer to set your colors manually below
-# (R color name or hexadecimal (e.g. "#ABABAB"))
-plot_colors = c("orange2", "black", "purple2")
-color_levels = c("High", "Mid", "Low")
-
 #plot_color_theme = "RdBu" # color palette
 
 ##################
@@ -53,6 +56,13 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
   rownames(targetCountMatrix) <- targetAnnotations[match(rownames(targetCountMatrix),
                                                          targetAnnotations[ , "TargetGUID"]),
                                                    "TargetName"]
+  # gather color parameters
+  names(plot_colors) <- color_levels
+  params <- list("plot_type" = plot_type,
+                 "color_by" = color_by,
+                 "shape_by" = shape_by,
+                 "plot_font" = plot_font,
+                 "plot_colors" = plot_colors)
   
   # Step 2:
   # Calculate PCA, tSNE, or UMAP dimensions
@@ -60,97 +70,55 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
                     targetCountMatrix = targetCountMatrix,
                     segmentAnnotations = segmentAnnotations)
   segmentAnnotations <- DR_ann$annot
+  if(plot_type == "PCA") {
+    var_est <- summary(DR_ann$data)$importance[3, ]
+  } else {
+    var_est <- NULL
+  }
 
   # Step 3: Graph data
   # if color or shape is a gene symbol add it to the annotations for plotting
-  if(plot_color %in% rownames(targetCountMatrix)) {
-    segmentAnnotations[, plot_color] <- unlist(log2(targetCountMatrix[plot_color, ]))
+  if(is.null(color_by)) {
+    colType <- 'Null'
+  } else if(color_by %in% rownames(targetCountMatrix)) {
+    if(!all(color_levels %in% c("High", "Mid", "Low"))) {
+      stop('Error: Please use color_levels "High", "Mid", "Low" with a Target coloring')
+    }
+    segmentAnnotations[, color_by] <- unlist(log2(targetCountMatrix[color_by, ]))
     colType <- 'Target'
   } else {
+    segmentAnnotations
+    if(!all(unique(segmentAnnotations[, color_by] %in% color_levels))) {
+      stop('Error: Mismatch in levels used with colors')
+    }
     colType <- 'Annot'
   }
+  params$colType <- colType
+  
   # Error catch - shape must be an annotation factor or tag
-  if(!plot_shape %in% colnames(segmentAnnotations)) {
+  if(!shape_by %in% colnames(segmentAnnotations)) {
     stop('Shape parameter not found in Segment Annotations\n')
   }
   
-  # graph setup
-  plt <- ggplot(segmentAnnotations,
-                aes(x = Dim1, y = Dim2)) + 
-    geom_point(aes_string(shape = plot_shape,
-                          color = plot_color),
-               size = 3, alpha = 0.8) +
-    theme_bw(base_size = plot_font$size) +
-    theme(aspect.ratio = 1,
-          text = element_text(family = plot_font$family)) 
-  
-  # Add variance estimates to PCA plot
-  if(plot_type == "PCA") {
-    plt <- plt + 
-      labs(x = paste0("PC1 (Var = ", round(100*var_est[1], 1), "%)"),
-           y = paste0("PC2 (Var = ", round(100*var_est[2], 1), "%)"))
-  } else {
-    plt <- plt +
-      labs(x = paste0(plot_type, " Dimension 1"),
-           y = paste0(plot_type, " Dimension 2"))
-  }
-  
-  # Update colors if an annotation is used
-  if(colType == "Annot") {
-    n_cols <- length(unique(segmentAnnotations[, plot_color]))
-    if(n_cols < brewer.pal.info[plot_color_theme, 1]) {
-      cols <- brewer.pal(n = max(3, n_cols),
-                         name = plot_color_theme)
-    } else {
-      cols <- brewer.pal(n = brewer.pal.info[plot_color_theme, 1],
-                         name = plot_color_theme)
-      cols <- colorRampPalette(cols)(n_cols)
-    }
-    if(reverse_theme) {
-      cols <- rev(cols)
-    }
-    plt <- plt +
-      scale_color_manual(values = cols)
-  } else {
-    # for target based coloring, if set to qualitative palette, use 
-    #    darkblue -> gray -> orange instead
-    clr_name <- paste0(plot_color, ',\nLog2 Counts')
-    if(brewer.pal.info[plot_color_theme, 2] == 'qual') {
-      plt <- plt +
-        scale_color_gradient2(name = clr_name,
-                              low = 'darkblue', mid = 'gray', high = 'orange2',
-                              midpoint = median(segmentAnnotations[, plot_color]))
-    } else {
-      # otherwise grab the palette, and determine where to replace the 'light'
-      # color with gray instead for visualization on a white background
-      cols <- brewer.pal(n = brewer.pal.info[plot_color_theme, 1],
-                         name = plot_color_theme)
-      if(reverse_theme) {
-        cols <- rev(cols)
-      }
-      if(brewer.pal.info[plot_color_theme, 2] == 'seq') {
-        # if sequential palette use gray -> color
-        # use 1 away from ends of palettes as these are brighter than the final colors
-        plt <- plt +
-          scale_color_gradient(name = clr_name,
-                               low = 'gray', high = cols[length(cols)-1])
-        
-      } else {
-        # if divergent use color1 -> gray -> color2
-        plt <- plt +
-          scale_color_gradient2(name = clr_name,
-                                low = cols[2], mid = 'gray', high = cols[length(cols)-1],
-                                midpoint = median(segmentAnnotations[, plot_color]))
-        
-      }
-    }
+  # iterate through appropriate dimensions
+  plt_list <- list()
+  dims <- grep("Dim[0-9]", colnames(segmentAnnotations))
+  dims <- colnames(segmentAnnotations)[dims]
+  dims <- combn(dims, 2)
+  for(i in 1:ncol(dims)) {
+    plt_list[i] <- 
+      plot_DR(targetCountMatrix = targetCountMatrix,
+              segmentAnnotations = segmentAnnotations,
+              dims = unlist(dims[,i]),
+              params = params,
+              var_est = var_est)
   }
   
   # Step 4: Save Files
   # Save File      
   ggsave(filename = paste0(plot_type, "_with_",
-                           plot_color, "_and_",
-                           plot_shape, ".png"),
+                           color_by, "_and_",
+                           shape_by, ".png"),
          plot = plt,
          device = "png", # type of plot
          dpi = 300,      # print DPI for print quality
@@ -161,7 +129,6 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
   
   #Variance Estimate Plot
   if(plot_type == "PCA") {
-    var_est <- summary(DR_ann$data)$importance[3, ]
     v_dat <- data.frame(Variance = 100*var_est,
                         PC = 1:length(var_est))
     vplt <- ggplot(v_dat[1:min(15, nrow(v_dat)), ], 
@@ -234,21 +201,101 @@ calc_DR <- function(plot_type = NULL,
 #         segmentAnnotations - annotations to use
 #         plot_type - which plot to generate
 #         dims - names of dims to plot (x, y)
-#         plot_color - tag, factor, or target
-#         plot_shape - tag, or factor
+#         color_by - tag, factor, or target
+#         shape_by - tag, or factor
 #         plot_color_theme - color palette
 #         reverse_theme = TRUE # reverse palette color
 #         var_est - variance estimates for PCA
 
 plot_DR <- function(targetCountMatrix = NULL,
                     segmentAnnotations = NULL,
-                    plot_type = NULL,
                     dims = c("Dim1", "Dim2"),
-                    plot_color = NULL,
-                    plot_shape = NULL,
-                    plot_font = list(family = "Arial"),
-                    plot_color_theme = NULL,
-                    reverse_theme = FALSE,
+                    params = params,
                     var_est = NULL) {
-  # pull from above
+  # graph setup
+  plt <- ggplot(segmentAnnotations,
+                aes_string(x = dims[1], y = dims[2])) + 
+    geom_point(aes_string(shape = params$shape_by,   # if either of these is null it will still graph
+                          color = params$color_by),
+               size = 3.5, alpha = 0.8) +
+    theme_bw(base_size = params$plot_font$size) +
+    theme(aspect.ratio = 1,
+          text = element_text(family = params$plot_font$family)) 
+  
+  # Add variance estimates to PCA plot
+  if(params$plot_type == "PCA") {
+    plt <- plt + 
+      labs(x = paste0("PC1 (Var = ", round(100*var_est[1], 1), "%)"),
+           y = paste0("PC2 (Var = ", round(100*var_est[2], 1), "%)"))
+  } else {
+    plt <- plt +
+      labs(x = paste0(params$plot_type, " Dimension 1"),
+           y = paste0(params$plot_type, " Dimension 2"))
+  }
+  
+  # Add color theme
+  if(params$colType == "Annot") {
+    plt <- plt +
+      scale_color_manual(values = params$plot_colors)
+  } else if(params$colType == "Target") {
+    clr_name <- paste0(params$color_by, ',\nLog2 Counts')
+    if(length(params$plot_colors) == 3) {
+      plt <- plt +
+        scale_color_gradient2(name = clr_name,
+                              low = params$plot_colors$Low,
+                              mid = params$plot_colors$Mid,
+                              high = params$plot_colors$High,
+                              midpoint = median(segmentAnnotations[, params$color_by]))
+    } else {
+      plt <- plt +
+        scale_color_gradient(name = clr_name,
+                             low = params$plot_colors$Low, 
+                             high = params$plot_colors$High)
+    }
+  }
+  return(plt)
 }
+
+# annot colors:
+# if(is.null(params$plot_color_theme)) {
+#   cols <- params$plot_colors
+# } else {
+#   n_cols <- length(unique(segmentAnnotations[, params$color_by]))
+#   if(n_cols < brewer.pal.info[params$plot_color_theme, 1]) {
+#     cols <- brewer.pal(n = max(3, n_cols),
+#                        name = params$plot_color_theme)
+#     cols <- cols[1:n_cols]
+#   } else {
+#     cols <- brewer.pal(n = brewer.pal.info[params$plot_color_theme, 1],
+#                        name = params$plot_color_theme)
+#     cols <- colorRampPalette(cols)(n_cols)
+#   }
+#   if(reverse_theme) {
+#     cols <- rev(cols)
+#   }
+#   names(cols) <- names(params$plot_colors)
+# }
+#
+# target colors:
+
+# otherwise grab the palette, and determine where to replace the 'light'
+# color with gray instead for visualization on a white background
+# cols <- brewer.pal(n = brewer.pal.info[plot_color_theme, 1],
+#                    name = plot_color_theme)
+# if(reverse_theme) {
+#   cols <- rev(cols)
+# }
+# if(brewer.pal.info[plot_color_theme, 2] == 'seq') {
+#   # if sequential palette use gray -> color
+#   # use 1 away from ends of palettes as these are brighter than the final colors
+#   plt <- plt +
+#     scale_color_gradient(name = clr_name,
+#                          low = 'gray', high = cols[length(cols)-1])
+#   
+# } else {
+#   # if divergent use color1 -> gray -> color2
+#   plt <- plt +
+#     scale_color_gradient2(name = clr_name,
+#                           low = cols[2], mid = 'gray', high = cols[length(cols)-1],
+#                           midpoint = median(segmentAnnotations[, color_by]))
+# }
