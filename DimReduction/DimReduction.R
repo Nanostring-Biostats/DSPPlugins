@@ -3,7 +3,7 @@ plot_type <- "tSNE"
 # Options: tSNE, UMAP, PCA
 
 # Plot Parameters
-color_by = "MSI" # tag, factor, or target
+color_by = "CD68" # tag, factor, or target
 shape_by = "SegmentName" # tag, or factor
 plot_font = list(family = "sans", size = 15)
 # shape & color can be set to NULL
