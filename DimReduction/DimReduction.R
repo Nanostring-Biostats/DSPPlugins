@@ -18,6 +18,10 @@ color_levels = c("High", "Mid", "Low")
 # column in the annotations file when using a tag
 # or a factor. For Targets use "High", "Low" and "Mid".
 #   "Mid" is optional
+# the first entry in plot_colors may be set to a palette 
+# if coloring using annotations. the palette order shall
+# be alphabetical unless all values of color_by are provided
+# in color_levels, in which case that order shall be used
 
 #plot_color_theme = "RdBu"
 #reverse_theme = TRUE # reverse palette color
@@ -57,12 +61,13 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
                                                          targetAnnotations[ , "TargetGUID"]),
                                                    "TargetName"]
   # gather color parameters
-  names(plot_colors) <- color_levels
+  names(plot_colors) <- color_levels[1:length(plot_colors)]
   params <- list("plot_type" = plot_type,
                  "color_by" = color_by,
                  "shape_by" = shape_by,
                  "plot_font" = plot_font,
-                 "plot_colors" = plot_colors)
+                 "plot_colors" = plot_colors,
+                 "color_levels" = color_levels)
   
   # Step 2:
   # Calculate PCA, tSNE, or UMAP dimensions
@@ -199,12 +204,8 @@ calc_DR <- function(plot_type = NULL,
 # plot_DR: plot dim reduction based on above variables
 # inputs: targetCountMatrix - data to work from
 #         segmentAnnotations - annotations to use
-#         plot_type - which plot to generate
 #         dims - names of dims to plot (x, y)
-#         color_by - tag, factor, or target
-#         shape_by - tag, or factor
-#         plot_color_theme - color palette
-#         reverse_theme = TRUE # reverse palette color
+#         params - list of parameters for the plot
 #         var_est - variance estimates for PCA
 
 plot_DR <- function(targetCountMatrix = NULL,
@@ -233,12 +234,38 @@ plot_DR <- function(targetCountMatrix = NULL,
            y = paste0(params$plot_type, " Dimension 2"))
   }
   
-  # Add color theme
+  # Add colors if provided
   if(params$colType == "Annot") {
-    plt <- plt +
-      scale_color_manual(values = params$plot_colors)
+    # use a palette if provided, & check that all levels are provided
+    if(params$plot_colors[1] %in% rownames(brewer.pal.info)) {
+      lvls <- unique(segmentAnnotations[, params$color_by])
+      n_cols <- length(lvls)
+      # if # levels < palette max, use default colors
+      if(n_cols < brewer.pal.info[params$plot_colors[1], 1]) {
+        cols <- brewer.pal(n = max(3, n_cols),
+                           name = params$plot_colors[1])
+        cols <- cols[1:n_cols]
+      # otherwise extrapolate colors to larger space
+      } else {
+        cols <- brewer.pal(n = brewer.pal.info[params$plot_colors[1], 1],
+                           name = params$plot_colors[1])
+        cols <- colorRampPalette(cols)(n_cols)
+      }
+      # if all levels in the color_levels variable
+      if(all(sort(lvls) == sort(color_levels))) {
+        names(cols) <- color_levels
+      }
+    plt <- plt + 
+      scale_color_manual(values = cols)
+    # if a list of colors is provided use those
+    } else {
+      plt <- plt +
+        scale_color_manual(values = params$plot_colors)
+    }
+  # coloring by Target value
   } else if(params$colType == "Target") {
     clr_name <- paste0(params$color_by, ',\nLog2 Counts')
+    # 3 point gradient
     if(length(params$plot_colors) == 3) {
       plt <- plt +
         scale_color_gradient2(name = clr_name,
@@ -247,6 +274,7 @@ plot_DR <- function(targetCountMatrix = NULL,
                               high = params$plot_colors$High,
                               midpoint = median(segmentAnnotations[, params$color_by]))
     } else {
+      # 2 point gradient
       plt <- plt +
         scale_color_gradient(name = clr_name,
                              low = params$plot_colors$Low, 
