@@ -12,7 +12,7 @@ plot_font = list(family = "sans", size = 15)
 # these may not always render properly.
 
 # Plot color options
-plot_colors = list("Set1", "gray", "darkblue")
+plot_colors = list("orange2", "gray", "darkblue")
 color_levels = c("High", "Mid", "Low")
 # color_levels must match values in the color_by 
 # column in the annotations file when using a tag
