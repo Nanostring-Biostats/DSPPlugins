@@ -264,19 +264,21 @@ plot_DR <- function(targetCountMatrix = NULL,
   } else if(params$colType == "Target") {
     clr_name <- paste0(params$color_by, ',\nLog2 Counts')
     # 3 point gradient
-    if(length(params$plot_colors) == 3) {
+    if(all(c("High","Mid","Low") %in% names(params$plot_colors))) {
       plt <- plt +
         scale_color_gradient2(name = clr_name,
                               low = params$plot_colors$Low,
                               mid = params$plot_colors$Mid,
                               high = params$plot_colors$High,
                               midpoint = median(segmentAnnotations[, params$color_by]))
-    } else {
+    } else if(all(c("High","Low") %in% names(params$plot_colors))) {
       # 2 point gradient
       plt <- plt +
         scale_color_gradient(name = clr_name,
                              low = params$plot_colors$Low, 
                              high = params$plot_colors$High)
+    } else {
+      stop("Error: Unexpected labels for plot levels, please use 'High', 'Mid', 'Low'")
     }
   }
   return(plt)
