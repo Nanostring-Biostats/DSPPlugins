@@ -76,7 +76,7 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
                     segmentAnnotations = segmentAnnotations)
   segmentAnnotations <- DR_ann$annot
   if(plot_type == "PCA") {
-    var_est <- summary(DR_ann$data)$importance[3, ]
+    var_est <- summary(DR_ann$data)$importance[2, ]
   } else {
     var_est <- NULL
   }
@@ -111,7 +111,7 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
   dims <- colnames(segmentAnnotations)[dims]
   dims <- combn(dims, 2)
   for(i in 1:ncol(dims)) {
-    plt_list[i] <- 
+    plt_list[[paste0(dims[1,i],dims[2,i])]] <- 
       plot_DR(targetCountMatrix = targetCountMatrix,
               segmentAnnotations = segmentAnnotations,
               dims = unlist(dims[,i]),
@@ -120,21 +120,20 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
   }
   
   # Step 4: Save Files
-  # Save File      
-  ggsave(filename = paste0(plot_type, "_with_",
-                           color_by, "_and_",
-                           shape_by, ".png"),
-         plot = plt,
-         device = "png", # type of plot
-         dpi = 300,      # print DPI for print quality
-         units = "in",   # inches
-         width = 8,      # default 8 inches
-         height = 6,     # default 6 inches
-         path = outputFolder)
+  # Save File 
   
-  #Variance Estimate Plot
+  pdf(file = file.path(outputFolder, 
+                       plot_type, "_with_",
+                       color_by, "_and_",
+                       shape_by, ".pdf",
+                       fsep = .Platform$file.sep),
+      width = 8,
+      height = 6)
+  print(plt_list)
+  
+  #Variance Estimate Plot - PCA only
   if(plot_type == "PCA") {
-    v_dat <- data.frame(Variance = 100*var_est,
+    v_dat <- data.frame(Variance = 100*cumsum(var_est),
                         PC = 1:length(var_est))
     vplt <- ggplot(v_dat[1:min(15, nrow(v_dat)), ], 
                    aes(x = PC, y = Variance, fill = Variance)) +
@@ -147,15 +146,9 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
       scale_fill_gradient(low = 'darkgray', high = 'dodgerblue2', limits = c(0,100)) +
       labs(x = 'Principal Component #', y = 'Cumulative Variance Explained') +
       theme(legend.position = "none")
-    ggsave(filename = "PCA_VarianceExplained.png",
-           plot = vplt,
-           device = "png", # type of plot
-           dpi = 300,      # print DPI for print quality
-           units = "in",   # inches
-           width = 8,      # default 8 inches
-           height = 6,     # default 6 inches
-           path = outputFolder)
+    print(vplt)
   }
+  dev.off()
   
   # Save CSV table with plot dimension data for re-graphing
   write.csv(segmentAnnotations,
@@ -225,9 +218,13 @@ plot_DR <- function(targetCountMatrix = NULL,
   
   # Add variance estimates to PCA plot
   if(params$plot_type == "PCA") {
+    d1 <- as.numeric(gsub("Dim", "", dims[1]))
+    d2 <- as.numeric(gsub("Dim", "", dims[2]))
     plt <- plt + 
-      labs(x = paste0("PC1 (Var = ", round(100*var_est[1], 1), "%)"),
-           y = paste0("PC2 (Var = ", round(100*var_est[2], 1), "%)"))
+      labs(x = paste0("PC", d1,
+                      " (Var = ", round(100*var_est[d1], 1), "%)"),
+           y = paste0("PC", d2,
+                      " (Var = ", round(100*var_est[d2], 1), "%)"))
   } else {
     plt <- plt +
       labs(x = paste0(params$plot_type, " Dimension 1"),
