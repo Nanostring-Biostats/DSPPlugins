@@ -12,7 +12,7 @@ plot_font = list(family = "sans", size = 15)
 # these may not always render properly.
 
 # Plot color options
-plot_colors = list("orange2", "gray", "darkblue")
+plot_colors = list("Set1", "gray", "darkblue")
 color_levels = c("High", "Mid", "Low")
 # color_levels must match values in the color_by 
 # column in the annotations file when using a tag
@@ -234,22 +234,23 @@ plot_DR <- function(targetCountMatrix = NULL,
   # Add colors if provided
   if(params$colType == "Annot") {
     # use a palette if provided, & check that all levels are provided
-    if(params$plot_colors[1] %in% rownames(brewer.pal.info)) {
+    if(params$plot_colors[[1]] %in% rownames(brewer.pal.info)) {
       lvls <- unique(segmentAnnotations[, params$color_by])
       n_cols <- length(lvls)
       # if # levels < palette max, use default colors
-      if(n_cols < brewer.pal.info[params$plot_colors[1], 1]) {
+      if(n_cols < brewer.pal.info[params$plot_colors[[1]], 1]) {
         cols <- brewer.pal(n = max(3, n_cols),
-                           name = params$plot_colors[1])
+                           name = params$plot_colors[[1]])
         cols <- cols[1:n_cols]
       # otherwise extrapolate colors to larger space
       } else {
-        cols <- brewer.pal(n = brewer.pal.info[params$plot_colors[1], 1],
-                           name = params$plot_colors[1])
+        cols <- brewer.pal(n = brewer.pal.info[params$plot_colors[[1]], 1],
+                           name = params$plot_colors[[1]])
         cols <- colorRampPalette(cols)(n_cols)
       }
       # if all levels in the color_levels variable
-      if(all(sort(lvls) == sort(color_levels))) {
+      if(all(lvls %in% color_levels)) {
+        color_levels <- color_levels[color_levels %in% lvls]
         names(cols) <- color_levels
       }
     plt <- plt + 
