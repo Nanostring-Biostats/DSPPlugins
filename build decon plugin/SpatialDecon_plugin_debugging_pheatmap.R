@@ -172,7 +172,7 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
 
   cat(variables_to_plot, file = paste0(outputFolder, "/variables_to_plot.txt"))
   cat(str(heatmapannot), file = paste0(outputFolder, "/heatmapannot.txt"))
-  
+
   # show just the original cells, not tumor abundance estimates derived from the is.pure.tumor argument:
   cells.to.plot <- intersect(rownames(res$beta), union(colnames(X), names(merges.full)))
 

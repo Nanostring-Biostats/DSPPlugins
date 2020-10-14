@@ -51,13 +51,13 @@ variables_to_plot <- c("ScanName", "SegmentName")
 # define coloring (optional):
 # for a list of R colors, see http://www.stat.columbia.edu/~tzheng/files/Rcolor.pdf
 # example syntax:
-#cols <- list(ScanName = c("5911 CTA" = "red", 
-#                          "5917 CTA" = "blue", 
-#                          "5922 CTA" = "darkblue", 
+# cols <- list(ScanName = c("5911 CTA" = "red",
+#                          "5917 CTA" = "blue",
+#                          "5922 CTA" = "darkblue",
 #                          "5929 CTA" = "forestgreen"),
-#            SegmentName = c("Tumor" = "chartreuse3", 
+#            SegmentName = c("Tumor" = "chartreuse3",
 #                            "TME" = "dodgerblue3"))
-cols = NULL
+cols <- NULL
 
 # define which variables specify xy coordinates:
 xpositionname <- "ROICoordinateX"
@@ -119,7 +119,7 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
   # format data for spatialdecon:
   norm <- dataset[targetAnnotations$TargetGUID, segmentAnnotations$segmentID]
   rownames(norm) <- targetAnnotations$TargetName
-  #colnames(norm) <- segmentAnnotations$segmentDisplayName
+  # colnames(norm) <- segmentAnnotations$segmentDisplayName
 
   # calculate background:
   bg <- derive_GeoMx_background(
@@ -142,16 +142,16 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
   )
 
   # reverse decon:
-  #rdecon <- reverseDecon(
+  # rdecon <- reverseDecon(
   #  norm = norm,
   #  beta = res$beta,
   #  epsilon = NULL
-  #)
+  # )
 
 
   #### write results files: ---------------------------------------------
   write.csv(res$beta, file = file.path(outputFolder, "cell_abundance_scores.csv", fsep = .Platform$file.sep))
-  #write.csv(res$p, file = file.path(outputFolder, "cell_pvalues.csv", fsep = .Platform$file.sep))
+  # write.csv(res$p, file = file.path(outputFolder, "cell_pvalues.csv", fsep = .Platform$file.sep))
   if (is.element("cell.counts", names(res))) {
     write.csv(res$cell.counts$cell.counts, file = file.path(outputFolder, "cell_count_estimates.csv", fsep = .Platform$file.sep))
   }
@@ -163,12 +163,12 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
   }
 
   # reverse decon resids
-  #write.csv(rdecon$resids, file = file.path(outputFolder, "reverse_decon_residuals.csv", fsep = .Platform$file.sep))
+  # write.csv(rdecon$resids, file = file.path(outputFolder, "reverse_decon_residuals.csv", fsep = .Platform$file.sep))
 
   ## reverse decon summary stats of gene dependency on cell mixing:
-  #sumstats <- cbind(rdecon$cors, rdecon$resid.sd)
-  #colnames(sumstats) <- c("cor w cell mixing", "residual SD from cell mixing")
-  #write.csv(sumstats, file = file.path(outputFolder, "gene_dependence_on_cell_mixing.csv", fsep = .Platform$file.sep))
+  # sumstats <- cbind(rdecon$cors, rdecon$resid.sd)
+  # colnames(sumstats) <- c("cor w cell mixing", "residual SD from cell mixing")
+  # write.csv(sumstats, file = file.path(outputFolder, "gene_dependence_on_cell_mixing.csv", fsep = .Platform$file.sep))
 
   #### results figures: ---------------------------------------------
 
@@ -184,15 +184,15 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
   heatmapannot <- NULL
   if (length(variables_to_plot) > 0) {
     heatmapannot <- segmentAnnotations[, variables_to_plot, drop = FALSE]
-    rownames(heatmapannot) = colnames(res$beta)
-    #rownames(heatmapannot) <- segmentAnnotations$segmentDisplayName
+    rownames(heatmapannot) <- colnames(res$beta)
+    # rownames(heatmapannot) <- segmentAnnotations$segmentDisplayName
   }
 
   # colors for variables_to_plot:
   if (length(cols) == 0) {
     cols <- assign_colors(segmentAnnotations[, variables_to_plot])
   }
-  
+
   # show just the original cells, not tumor abundance estimates derived from the is.pure.tumor argument:
   cells.to.plot <- intersect(rownames(res$beta), union(colnames(X), names(merges.full)))
 
@@ -206,36 +206,36 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
     annotation_colors = cols,
     legend_breaks = c(round(seq(0, thresh, length.out = 5))[-5], thresh),
     legend_labels = c(round(seq(0, thresh, length.out = 5))[-5], paste0("Abundance scores,\ntruncated above at ", thresh))
-    #main = paste0("Abundance scores, truncated above at ", thresh)
+    # main = paste0("Abundance scores, truncated above at ", thresh)
   )
   svg(file = file.path(outputFolder, "abundance_heatmap.svg", fsep = .Platform$file.sep), width = 12)
   print(p1)
   dev.off()
-  
-  
+
+
   # scaled abundances:
-  mat = sweep(res$beta, 1, apply(res$beta, 1, max), "/")
+  mat <- sweep(res$beta, 1, apply(res$beta, 1, max), "/")
   p3 <- pheatmap(mat,
-                 col = colorRampPalette(c("white", "darkblue"))(100),
-                 fontsize_col = 4,
-                 annotation_col = heatmapannot,
-                 annotation_colors = cols,
-                 legend_breaks = c(round(seq(0, 1, length.out = 5), 2)[-5], 1),
-                 legend_labels = c(round(seq(0, 1, length.out = 5), 2)[-5], "Ratio to max\nabundance")
-                 #main = paste0("Abundance scores, truncated above at ", thresh)
+    col = colorRampPalette(c("white", "darkblue"))(100),
+    fontsize_col = 4,
+    annotation_col = heatmapannot,
+    annotation_colors = cols,
+    legend_breaks = c(round(seq(0, 1, length.out = 5), 2)[-5], 1),
+    legend_labels = c(round(seq(0, 1, length.out = 5), 2)[-5], "Ratio to max\nabundance")
+    # main = paste0("Abundance scores, truncated above at ", thresh)
   )
   svg(file = file.path(outputFolder, "scaled_abundance_heatmap.svg", fsep = .Platform$file.sep), width = 12)
   print(p3)
   dev.off()
 
   # proportions:
-  props = replace(res$prop_of_nontumor[cells.to.plot, ], is.na(res$prop_of_nontumor[cells.to.plot, ]), 0)
+  props <- replace(res$prop_of_nontumor[cells.to.plot, ], is.na(res$prop_of_nontumor[cells.to.plot, ]), 0)
   p2 <- pheatmap(props,
     col = viridis_pal(option = "B")(100),
     fontsize_col = 4,
     annotation_col = heatmapannot,
     annotation_colors = cols,
-    legend_breaks = round(seq(0, max(props)*0.99, length.out = 5), 2),
+    legend_breaks = round(seq(0, max(props) * 0.99, length.out = 5), 2),
     legend_labels = c(round(seq(0, max(props), length.out = 5), 2)[-5], "Proportion")
   )
   svg(file = file.path(outputFolder, "proportion_heatmap.svg", fsep = .Platform$file.sep), width = 12)
@@ -260,7 +260,7 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
 
   # abundances:
   svg(file = file.path(outputFolder, "abundance_barplot.svg", fsep = .Platform$file.sep), width = 12)
-  layout(mat = matrix(c(1,2,3,3), 2), widths = c(10, 3, 10, 3), heights = c(1,8,10))
+  layout(mat = matrix(c(1, 2, 3, 3), 2), widths = c(10, 3, 10, 3), heights = c(1, 8, 10))
   par(mar = c(0, 5.2, 0, 0.2))
   plot(p1$tree_col, labels = F, main = "", ylab = "", yaxt = "n")
   par(mar = c(15, 5, 0, 0))
@@ -274,7 +274,7 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
 
   # proportions:
   svg(file = file.path(outputFolder, "proportion_barplot.svg", fsep = .Platform$file.sep), width = 12)
-  layout(mat = matrix(c(1,2,3,3), 2), widths = c(10, 3, 10, 3), heights = c(1,8,10))
+  layout(mat = matrix(c(1, 2, 3, 3), 2), widths = c(10, 3, 10, 3), heights = c(1, 8, 10))
   par(mar = c(0, 5.2, 0, 0.2))
   plot(p2$tree_col, labels = F, main = "", ylab = "", yaxt = "n")
   par(mar = c(15, 5, 0, 0))
@@ -285,19 +285,18 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
     cex.names = namescex
   )
   dev.off()
-  
+
   # spaceplots: draw separately for each cell:
   if (all(is.element(c(xpositionname, ypositionname, tissueidname), colnames(segmentAnnotations)))) {
-    
     if (all(!is.na(segmentAnnotations[, c(xpositionname, ypositionname, tissueidname)]))) {
-      
+
       # stratify on SegmentName if it has multiple levels:
-      #(assumption: SegmentName gives segment type, identifies the different kinds of AOIs that can share an ROI)
-      aoitype = rep("", nrow(segmentAnnotations))
+      # (assumption: SegmentName gives segment type, identifies the different kinds of AOIs that can share an ROI)
+      aoitype <- rep("", nrow(segmentAnnotations))
       if (is.element("SegmentName", colnames(segmentAnnotations))) {
         if (length(unique(segmentAnnotations[, "SegmentName"])) > 1) {
-          aoitype = segmentAnnotations[, "SegmentName"]
-          aoitype = replace(aoitype, is.na(aoitype), "na")
+          aoitype <- segmentAnnotations[, "SegmentName"]
+          aoitype <- replace(aoitype, is.na(aoitype), "na")
         }
       }
       for (varname in variables_to_plot) {
@@ -305,57 +304,64 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
         for (atype in unique(aoitype)) {
           pdf(file = file.path(outputFolder, paste0("spaceplots-abundance-subset-", atype, "-colorby-", varname, ".pdf"), fsep = .Platform$file.sep))
           for (cell in cells.to.plot) {
-            use = aoitype == atype
-            sp = spaceplot(x = segmentAnnotations[use, xpositionname], 
-                           y = segmentAnnotations[use, ypositionname], 
-                           z = res$beta[cell, use],
-                           tissue = segmentAnnotations[use, tissueidname], 
-                           tissue.order = NULL, 
-                           tissuecols = NULL, 
-                           tissuecols.alpha = 0.2, 
-                           rescale = TRUE, 
-                           cex = 3, col = cols[[varname]][segmentAnnotations[use, varname]],
-                           nrow = NULL, rowind = NULL, colind = NULL, 
-                           expansion = 1.2,
-                           main = cell)
+            use <- aoitype == atype
+            sp <- spaceplot(
+              x = segmentAnnotations[use, xpositionname],
+              y = segmentAnnotations[use, ypositionname],
+              z = res$beta[cell, use],
+              tissue = segmentAnnotations[use, tissueidname],
+              tissue.order = NULL,
+              tissuecols = NULL,
+              tissuecols.alpha = 0.2,
+              rescale = TRUE,
+              cex = 3, col = cols[[varname]][segmentAnnotations[use, varname]],
+              nrow = NULL, rowind = NULL, colind = NULL,
+              expansion = 1.2,
+              main = cell
+            )
             for (name in names(sp$boundaries)) {
-              text(x = median(range(sp$boundaries[[name]]$x)),
-                   y = max(sp$boundaries[[name]]$y),
-                   name)
+              text(
+                x = median(range(sp$boundaries[[name]]$x)),
+                y = max(sp$boundaries[[name]]$y),
+                name
+              )
             }
           }
           dev.off()
-        } 
-        
+        }
+
         # proportion spaceplots
         for (atype in unique(aoitype)) {
           pdf(file = file.path(outputFolder, paste0("spaceplots-proportion-subset-", atype, "-colorby-", varname, ".pdf"), fsep = .Platform$file.sep))
-          use = aoitype == atype
+          use <- aoitype == atype
           for (cell in cells.to.plot) {
-            
-            sp = spaceplot(x = segmentAnnotations[use, xpositionname], 
-                           y = segmentAnnotations[use, ypositionname], 
-                           z = replace(res$prop_of_nontumor[cell, use], is.na(res$prop_of_nontumor[cell, use]), 0),
-                           tissue = segmentAnnotations[use, tissueidname], 
-                           tissue.order = NULL, 
-                           tissuecols = NULL, 
-                           tissuecols.alpha = 0.2, 
-                           rescale = TRUE, 
-                           cex = 3, col = cols[[varname]][segmentAnnotations[use, varname]],
-                           nrow = NULL, rowind = NULL, colind = NULL, 
-                           expansion = 1.2,
-                           main = cell)
+            sp <- spaceplot(
+              x = segmentAnnotations[use, xpositionname],
+              y = segmentAnnotations[use, ypositionname],
+              z = replace(res$prop_of_nontumor[cell, use], is.na(res$prop_of_nontumor[cell, use]), 0),
+              tissue = segmentAnnotations[use, tissueidname],
+              tissue.order = NULL,
+              tissuecols = NULL,
+              tissuecols.alpha = 0.2,
+              rescale = TRUE,
+              cex = 3, col = cols[[varname]][segmentAnnotations[use, varname]],
+              nrow = NULL, rowind = NULL, colind = NULL,
+              expansion = 1.2,
+              main = cell
+            )
             for (name in names(sp$boundaries)) {
-              text(x = median(range(sp$boundaries[[name]]$x)),
-                   y = max(sp$boundaries[[name]]$y),
-                   name)
+              text(
+                x = median(range(sp$boundaries[[name]]$x)),
+                y = max(sp$boundaries[[name]]$y),
+                name
+              )
             }
           }
           dev.off()
-        } 
+        }
       }
     }
-  }#end spaceplots
+  } # end spaceplots
 }
 
 
@@ -393,7 +399,7 @@ assign_colors <- function(annot) {
     return(fcols)
   }
   colvec <- fadecols(colvec, 0.7)
-  
+
   # assign colors:
   cols <- list()
   colorby <- colnames(annot)
@@ -404,6 +410,6 @@ assign_colors <- function(annot) {
     # remove the used colors from further consideration:
     colvec <- setdiff(colvec, cols[[varname]]) # (disabling this so the more bold colors are re-used)
   }
-  
+
   return(cols)
 }

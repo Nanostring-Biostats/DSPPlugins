@@ -72,8 +72,9 @@ for (i in 1:length(zz)) {
   cat(zz[[i]], file = "SpatialDecon_plugin.R", append = T, sep = " ", fill = TRUE)
 }
 
-# file.copy(from = "SpatialDecon_plugin.R", "final_script/SpatialDecon_plugin.R")
+#file.copy(from = "SpatialDecon_plugin.R", "final_script/SpatialDecon_plugin.R")
 
-# setwd("final_script/")
+#setwd("final_script/")
 # format:
-# use_tidy_style()
+#library(usethis)
+#use_tidy_style()
