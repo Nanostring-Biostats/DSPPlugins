@@ -57,6 +57,10 @@ for (name in dir(sdecondir)) {
   zz[[length(zz) + 1]] <- temp
 }
 
+# add spaceplots function:
+temp <- readChar("spaceplot.R", file.info("main.R")$size)
+zz[[length(zz) + 1]] <- temp
+
 #### copy data:
 temp <- readChar("spatialdecon data.R", file.info("spatialdecon data.R")$size)
 zz[[length(zz) + 1]] <- temp
