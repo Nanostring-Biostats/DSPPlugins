@@ -1,10 +1,16 @@
-### functions to perform negative normalization:
-# note: this code assumes the input is QC'd RNA counts collapsed by target
+# title: RNA Negative Normalization
+# description: Performs negative normalization on RNA count data collapsed by target
+#              This script supports normalization for multi-panel analyses.
+# input: QC'd RNA counts collapsed by target
+# return: A dataset object that contains negative normalized counts
 
-
-
-# main function called by DSP-DA:
+# Main function used by DSP-DA
 main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
+  # Check for required columns
+  cols_check <- c("ProbePool", "CodeClass", "TargetGUID")
+  if(!all(cols_check %in% colnames(targetAnnotations))) {
+    stop("Error: Required target annotation columns missing.")
+  }
   pools <- unique(targetAnnotations[["ProbePool"]])
   pool_neg_norm <- lapply(pools, 
     function(pool) {
@@ -12,6 +18,14 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
       pool_neg <- 
         targetAnnotations[targetAnnotations[["CodeClass"]] == "Negative" & 
                             targetAnnotations[["ProbePool"]] == pool, "TargetGUID"]
+      if(length(pool_neg) < 1){
+        stop(paste0("Error: No negative could be located for probe pool ", 
+                      pool, "."))
+      }
+      if(length(pool_neg) > 1){
+        stop(paste0("Error: More than one negative was located for probe pool ", 
+                      pool, "."))
+      }
       pool_targets <- 
         targetAnnotations[targetAnnotations[["ProbePool"]] == pool, "TargetGUID"]
 
