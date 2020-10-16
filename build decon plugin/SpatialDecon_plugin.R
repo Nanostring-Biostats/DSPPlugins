@@ -71,6 +71,7 @@ tissueidname <- "ScanName"
 library(logNormReg)
 library(pheatmap)
 library(viridis)
+library(scales)
 
 main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
 
@@ -215,6 +216,7 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
 
   # scaled abundances:
   mat <- sweep(res$beta, 1, apply(res$beta, 1, max), "/")
+  mat <- replace(mat, is.na(mat), 0)
   p3 <- pheatmap(mat,
     col = colorRampPalette(c("white", "darkblue"))(100),
     fontsize_col = 4,
