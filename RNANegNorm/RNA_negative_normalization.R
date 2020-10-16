@@ -11,13 +11,14 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
       # Get pool and corresponding target counts
       pool_neg <- 
         targetAnnotations[targetAnnotations[["CodeClass"]] == "Negative" & 
-                            targetAnnotations[["ProbePool"]] == pool, "TargetName"]
+                            targetAnnotations[["ProbePool"]] == pool, "TargetGUID"]
       pool_targets <- 
-        targetAnnotations[targetAnnotations[["ProbePool"]] == pool, "TargetName"]
+        targetAnnotations[targetAnnotations[["ProbePool"]] == pool, "TargetGUID"]
 
       # Calculate normalization factor and normalized counts
       pool_neg_factors <- 
-        unlist(dataset[pool_neg, ] / geoMean(as.numeric(dataset[pool_neg, ])))
+        unlist(dataset[pool_neg, ] / 
+                 exp(mean(log(as.numeric(dataset[pool_neg, ])))))
       pool_counts <-
         as.matrix(dataset[pool_targets, ]) %*% diag(1 / pool_neg_factors)
    })
@@ -25,5 +26,6 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
   #Collapse data back into one data frame
   neg_norm_df <- data.frame(do.call(rbind, pool_neg_norm))
   colnames(neg_norm_df) <- colnames(dataset)
+  neg_norm_df <- neg_norm_df[rownames(dataset), ]
   return(neg_norm_df)
 }
