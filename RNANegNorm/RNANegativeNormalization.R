@@ -11,6 +11,9 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
   if(!all(cols_check %in% colnames(targetAnnotations))) {
     stop("Error: Required target annotation columns missing.")
   }
+  if(any(is.na(targetAnnotations[["ProbePool"]]))) {
+    stop("Error: Missing ProbePool designations. Make sure this is RNA data.")
+  }
   pools <- unique(targetAnnotations[["ProbePool"]])
   pool_neg_norm <- lapply(pools, 
     function(pool) {
@@ -18,11 +21,11 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
       pool_neg <- 
         targetAnnotations[targetAnnotations[["CodeClass"]] == "Negative" & 
                             targetAnnotations[["ProbePool"]] == pool, "TargetGUID"]
-      if(length(pool_neg) < 1){
+      if(length(pool_neg) < 1) {
         stop(paste0("Error: No negative could be located for probe pool ", 
                       pool, "."))
       }
-      if(length(pool_neg) > 1){
+      if(length(pool_neg) > 1) {
         stop(paste0("Error: More than one negative was located for probe pool ", 
                       pool, "."))
       }
