@@ -1,7 +1,7 @@
-# title: RNA Negative Normalization
-# description: Performs negative normalization on RNA count data collapsed by target
+# title: NGS RNA Negative Normalization
+# description: Performs negative normalization on NGS RNA count data collapsed by target
 #              This script supports normalization for multi-panel analyses.
-# input: QC'd RNA counts collapsed by target
+# input: QC'd NGS RNA counts collapsed by target
 # return: A dataset object that contains negative normalized counts
 
 # Main function used by DSP-DA
@@ -12,7 +12,7 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
     stop("Error: Required target annotation columns missing.")
   }
   if(any(is.na(targetAnnotations[["ProbePool"]]))) {
-    stop("Error: Missing ProbePool designations. Make sure this is RNA data.")
+    stop("Error: Missing ProbePool designations. Make sure this is NGS RNA data.")
   }
   pools <- unique(targetAnnotations[["ProbePool"]])
   pool_neg_norm <- lapply(pools, 
