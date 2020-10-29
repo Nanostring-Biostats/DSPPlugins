@@ -1,59 +1,69 @@
-# SpatialDecon: mixed cell deconvolution for spatial and/or bulk gene expression data
 # Copyright (C) 2020, NanoString Technologies, Inc.
 #    This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
 #    This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 #    You should have received a copy of the GNU General Public License along with this program.  If not, see https://www.gnu.org/licenses/.
-# Contact us:
-# NanoString Technologies, Inc.
-# 530 Fairview Avenue N
-# Seattle, WA 98109
-# Tel: (888) 358-6266
-# pdanaher@nanostring.com
+# Contact us: # NanoString Technologies, Inc. # 530 Fairview Avenue N # Seattle, WA 98109 # Tel: (888) 358-6266
 
 
 ##########################################################
 ####      Arguments to be modified by user            ####
 ##########################################################
 
-
-# Specify the filename of the cell profile matrix:
-# Instructions: specifying a new cell profile matrix:
-#   Use a .csv file with cell-type-specific expression profiles, with genes in
-#   rows and cell types in columns. Row names should be in HUGO gene names.
-# Instructions: downloading a pre-specified cell profile matrix:
-#   You can supply your own cell profile matrix, or you can download a pre-specified one from
-#   https://github.com/Nanostring-Biostats/Extensions/cell-profile-library
-# Instructions: uploading to DSPDA:
-#   Upload this csv file as you would a plugin .R file.
+# Cell profile matrix filename:
 cell_profile_filename <- "safeTME-for-tumor-immune.csv"
 
-# if you have segments selected to be pure tumor, free of immune and stroma,
-# then specify a column name giving the identities of those segments. The
-# code expects this column to have"tumor" entered for those segments, and other
-# values elsewhere.
+# annotation column giving pure tumor AOIs
+# (this column must have the value "tumor" for indicate tumor AOIs)
 pure_tumor_column_name <- "none"
-
-# enter the name of the column giving nuclei counts
-nuclei_count_column_name <- "AOINucleiCount"
-
-# define cell types to be added together in the final result:
-# example syntax:
-# merges = list()
-# merges[["T"]] = c("CD8.T", "CD4.T")
-# merges[["myeloid"]] = c("macrophage", "monocyte", "DC")
-merges <- list()
-
 
 # define variables to show in heatmaps:
 variables_to_plot <- c("ScanName", "SegmentName")
+
+
+# define coloring of annotations (optional):
+# 1: set the next line to TRUE:
+custom_annotation_coloring <- FALSE
+# and then modify the example syntax below:
+if (custom_annotation_coloring) {
+  # example syntax:
+  cols <- list(
+    ScanName = c(
+      "scan1" = "red",
+      "scan2" = "blue",
+      "scan3" = "darkblue",
+      "scan4" = "forestgreen"
+    ),
+    SegmentName = c(
+      "Tumor" = "chartreuse3",
+      "TME" = "dodgerblue3"
+    )
+  )
+  # for a list of R colors, see http://www.stat.columbia.edu/~tzheng/files/Rcolor.pdf
+}
+
+# heatmap color scheme:
+hmcols <- c("white", "darkblue")
+# alternative heatmap colors:
+# remove the "#" to enable either of these lines:
+# viridis option B:
+# hmcols = c("#000004FF", "#1B0C42FF", "#4B0C6BFF", "#781C6DFF", "#A52C60FF", "#CF4446FF", "#ED6925FF", "#FB9A06FF", "#F7D03CFF", "#FCFFA4FF")
+# viridis option D:
+# hmcols = c("#440154FF", "#482878FF", "#3E4A89FF", "#31688EFF", "#26828EFF", "#1F9E89FF", "#35B779FF", "#6DCD59FF", "#B4DE2CFF", "#FDE725FF")
+
+
+
+
 
 ##########################################################
 #### end of arguments. DO NOT CHANGE CODE BELOW HERE  ####
 ##########################################################
 
+
 library(logNormReg)
 library(pheatmap)
 library(viridis)
+library(scales)
+library(openxlsx)
 
 main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
 
@@ -62,6 +72,14 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
 
   # access cell profile matrix file:
   X <- as.matrix(read.csv(cell_profile_filename, header = T, row.names = 1))
+
+
+  # ARGUMENT (hidden): define cell types to be added together in the final result:
+  # example syntax:
+  # merges = list()
+  # merges[["T"]] = c("CD8.T", "CD4.T")
+  # merges[["myeloid"]] = c("macrophage", "monocyte", "DC")
+  merges <- list()
 
   # parse merges:
   merges.full <- NULL
@@ -79,20 +97,24 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
     }
   }
 
+
+  # ARGUMENT (hidden): enter the name of the column giving nuclei counts
+  nuclei_count_column_name <- "this_is_hidden_for_advanced_users" # "AOINucleiCount"
+
   # parse nuclei column
   cell_counts <- NULL
   if (is.element(nuclei_count_column_name, colnames(segmentAnnotations))) {
     cell_counts <- as.numeric(segmentAnnotations[, nuclei_count_column_name])
   }
-  if (!is.element(nuclei_count_column_name, colnames(segmentAnnotations))) {
-    warning("The value entered for nuclei_count_column_name was not a column header in the segment annotations. 
-            Results will not be output on the scale of cell counts; just in abundance scores and proportions.")
-  }
+  # if (!is.element(nuclei_count_column_name, colnames(segmentAnnotations))) {
+  #  warning("The value entered for nuclei_count_column_name was not a column header in the segment annotations.
+  #          Results will not be output on the scale of cell counts; just in abundance scores and proportions.")
+  # }
 
   # parse pure tumor column
   is_pure_tumor <- NULL
   if (is.element(pure_tumor_column_name, colnames(segmentAnnotations))) {
-    is_pure_tumor <- segmentAnnotations[, pure_tumor_column_name] == "tumor"
+    is_pure_tumor <- tolower(segmentAnnotations[, pure_tumor_column_name]) == "tumor"
     is_pure_tumor <- replace(is_pure_tumor, is.na(is_pure_tumor), FALSE)
   }
   if (!is.element(pure_tumor_column_name, colnames(segmentAnnotations)) & (pure_tumor_column_name != "none")) {
@@ -102,7 +124,7 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
   # format data for spatialdecon:
   norm <- dataset[targetAnnotations$TargetGUID, segmentAnnotations$segmentID]
   rownames(norm) <- targetAnnotations$TargetName
-  #colnames(norm) <- segmentAnnotations$segmentDisplayName
+  # colnames(norm) <- segmentAnnotations$segmentDisplayName
 
   # calculate background:
   bg <- derive_GeoMx_background(
@@ -125,32 +147,72 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
   )
 
   # reverse decon:
-  rdecon <- reverseDecon(
-    norm = norm,
-    beta = res$beta,
-    epsilon = NULL
-  )
+  # rdecon <- reverseDecon(
+  #  norm = norm,
+  #  beta = res$beta,
+  #  epsilon = NULL
+  # )
 
 
   #### write results files: ---------------------------------------------
-  write.csv(res$beta, file = file.path(outputFolder, "cell_abundance_scores.csv", fsep = .Platform$file.sep))
-  write.csv(res$p, file = file.path(outputFolder, "cell_pvalues.csv", fsep = .Platform$file.sep))
-  if (is.element("cell.counts", names(res))) {
-    write.csv(res$cell.counts$cell.counts, file = file.path(outputFolder, "cell_count_estimates.csv", fsep = .Platform$file.sep))
-  }
-  if (is.element("beta.granular", names(res))) {
-    write.csv(res$beta.granular, file = file.path(outputFolder, "cell_abundance_scores_granular.csv", fsep = .Platform$file.sep))
-  }
-  if (is.element("cell.counts.granular", names(res))) {
-    write.csv(res$cell.counts.granular$cell.counts, file = file.path(outputFolder, "cell_count_estimates_granular.csv", fsep = .Platform$file.sep))
-  }
-  # reverse decon resids
-  write.csv(rdecon$resids, file = file.path(outputFolder, "reverse_decon_residuals.csv", fsep = .Platform$file.sep))
 
-  # reverse decon summary stats of gene dependency on cell mixing:
-  sumstats <- cbind(rdecon$cors, rdecon$resid.sd)
-  colnames(sumstats) <- c("cor w cell mixing", "residual SD from cell mixing")
-  write.csv(sumstats, file = file.path(outputFolder, "gene_dependence_on_cell_mixing.csv", fsep = .Platform$file.sep))
+  # initialize a workbook to write to excel:
+  wb <- createWorkbook("decon")
+  # write beta:
+  addWorksheet(wb, "Abundance scores")
+  writeData(wb,
+    sheet = "Abundance scores",
+    res$beta,
+    colNames = TRUE, rowNames = TRUE
+  )
+  # write props:
+  addWorksheet(wb, "Proportions")
+  writeData(wb,
+    sheet = "Proportions",
+    res$prop_of_nontumor,
+    colNames = TRUE, rowNames = TRUE
+  )
+  # write scaled beta:
+  addWorksheet(wb, "Scaled abundance scores")
+  writeData(wb,
+    sheet = "Scaled abundance scores",
+    sweep(res$beta, 1, apply(res$beta, 1, max), "/"),
+    colNames = TRUE, rowNames = TRUE
+  )
+
+  # write cell counts if available:
+  if (is.element("cell.counts", names(res))) {
+    addWorksheet(wb, "Cell counts")
+    writeData(wb,
+      sheet = "Cell counts",
+      res$cell.counts$cell.counts,
+      colNames = TRUE, rowNames = TRUE
+    )
+  }
+  # add segment annotations:
+  addWorksheet(wb, "Segment annotations")
+  writeData(wb,
+    sheet = "Segment annotations",
+    segmentAnnotations,
+    colNames = TRUE, rowNames = FALSE
+  )
+
+
+  # save the excel workbook:
+  saveWorkbook(wb,
+    file = file.path(outputFolder, "spatialdecon_outputs.xlsx", fsep = .Platform$file.sep),
+    overwrite = TRUE
+  )
+
+
+
+  # reverse decon resids
+  # write.csv(rdecon$resids, file = file.path(outputFolder, "reverse_decon_residuals.csv", fsep = .Platform$file.sep))
+
+  ## reverse decon summary stats of gene dependency on cell mixing:
+  # sumstats <- cbind(rdecon$cors, rdecon$resid.sd)
+  # colnames(sumstats) <- c("cor w cell mixing", "residual SD from cell mixing")
+  # write.csv(sumstats, file = file.path(outputFolder, "gene_dependence_on_cell_mixing.csv", fsep = .Platform$file.sep))
 
   #### results figures: ---------------------------------------------
 
@@ -166,37 +228,78 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
   heatmapannot <- NULL
   if (length(variables_to_plot) > 0) {
     heatmapannot <- segmentAnnotations[, variables_to_plot, drop = FALSE]
-    rownames(heatmapannot) = colnames(res$beta)
-    #rownames(heatmapannot) <- segmentAnnotations$segmentDisplayName
+    rownames(heatmapannot) <- colnames(res$beta)
+    # rownames(heatmapannot) <- segmentAnnotations$segmentDisplayName
+  }
+
+  # colors for variables_to_plot:
+  if (!exists("cols")) {
+    cols <- assign_colors(segmentAnnotations[, variables_to_plot])
   }
 
   # show just the original cells, not tumor abundance estimates derived from the is.pure.tumor argument:
   cells.to.plot <- intersect(rownames(res$beta), union(colnames(X), names(merges.full)))
 
+  # one pdf for all results:
+  pdf(file = file.path(outputFolder, "spatialdecon_results.pdf", fsep = .Platform$file.sep), width = 12)
+
   #### heatmaps
   # abundances:
   thresh <- signif(quantile(res$beta, 0.97), 2)
   p1 <- pheatmap(pmin(res$beta[cells.to.plot, ], thresh),
-    col = colorRampPalette(c("white", "darkblue"))(100),
+    col = colorRampPalette(hmcols)(100),
     fontsize_col = 4,
     annotation_col = heatmapannot,
-    main = paste0("Abundance scores, truncated above at ", thresh)
+    annotation_colors = cols,
+    legend_breaks = c(round(seq(0, thresh, length.out = 5))[-5], thresh),
+    legend_labels = c(round(seq(0, thresh, length.out = 5))[-5], paste0("Abundance scores,\ntruncated above at ", thresh))
+    # main = paste0("Abundance scores, truncated above at ", thresh)
   )
-  pdf(file = file.path(outputFolder, "cell_abundance_heatmap.pdf", fsep = .Platform$file.sep), width = 12)
-  print(p1)
-  dev.off()
+  # print(p1)
+
+  # scaled abundances:
+  mat <- sweep(res$beta, 1, apply(res$beta, 1, max), "/")
+  mat <- replace(mat, is.na(mat), 0)
+  p3 <- pheatmap(mat,
+    col = colorRampPalette(hmcols)(100),
+    fontsize_col = 4,
+    annotation_col = heatmapannot,
+    annotation_colors = cols,
+    legend_breaks = c(round(seq(0, 1, length.out = 5), 2)[-5], 1),
+    legend_labels = c(round(seq(0, 1, length.out = 5), 2)[-5], "Scaled abundance\n(ratio to max)")
+    # main = paste0("Abundance scores, truncated above at ", thresh)
+  )
+  # print(p3)
 
   # proportions:
-  p2 <- pheatmap(res$prop_of_nontumor[cells.to.plot, ],
-    col = viridis_pal(option = "B")(100),
+  props <- replace(res$prop_of_nontumor[cells.to.plot, ], is.na(res$prop_of_nontumor[cells.to.plot, ]), 0)
+  p2 <- pheatmap(props,
+    col = colorRampPalette(hmcols)(100),
     fontsize_col = 4,
-    annotation_col = heatmapannot
+    annotation_col = heatmapannot,
+    annotation_colors = cols,
+    legend_breaks = round(seq(0, max(props) * 0.99, length.out = 5), 2),
+    legend_labels = c(round(seq(0, max(props), length.out = 5), 2)[-5], "Proportion of all\nfitted populations")
   )
-  pdf(file = file.path(outputFolder, "cell_proportion_heatmap.pdf", fsep = .Platform$file.sep), width = 12)
-  print(p2)
-  dev.off()
+  # print(p2)
 
-  #### barplots
+  #### barplots setup:
+
+  # use safeTME colors if the right cells are present:
+  if (all(is.element(cells.to.plot, names(cellcols)))) {
+    col <- cellcols[cells.to.plot]
+  }
+  if (!all(is.element(cells.to.plot, names(cellcols)))) {
+    manycols <- c(
+      "#8DD3C7", "#FFFFB3", "#BEBADA", "#FB8072", "#80B1D3", "#FDB462",
+      "#B3DE69", "#FCCDE5", "#A6CEE3", "#1F78B4", "#B2DF8A", "#33A02C",
+      "#FB9A99", "#E31A1C", "#FDBF6F", "#FF7F00", "#1B9E77", "#D95F02",
+      "#7570B3", "#E7298A", "#66A61E", "#E6AB02", "#A6761D", "#666666",
+      sample(grDevices::colors(), 99)
+    )
+    col <- manycols[seq_len(length(cells.to.plot))]
+    names(col) <- cells.to.plot
+  }
 
   # choose an appropriate label size:
   namescex <- 1
@@ -211,32 +314,253 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
   }
 
 
+  ### abundance barplot:
+  layout(mat = matrix(c(1, 2, 3, 3), 2), widths = c(10, 3, 10, 3), heights = c(1, 8, 10))
+  par(mar = c(0, 8.2, 0, 0.2))
+  plot(p1$tree_col, labels = F, main = "", ylab = "", yaxt = "n")
+  par(mar = c(15, 8, 0, 0))
 
-  # abundances:
-  pdf(file = file.path(outputFolder, "cell_abundance_barplot.pdf", fsep = .Platform$file.sep), width = 12)
-  layout(mat = matrix(1:2, 1), widths = c(10, 3))
-  par(mar = c(15, 5, 2, 0))
-  TIL_barplot(
-    mat = res$beta[cells.to.plot, p1$tree_col$order],
-    draw_legend = TRUE,
-    ylab = "Abundance scores",
-    cex.names = namescex
-  )
-  dev.off()
+  # data to plot:
+  mat <- res$beta[cells.to.plot, p1$tree_col$order]
+  # infer scale of negative y-axis for annotation colorbars
+  ymin <- -max(colSums(mat)) * 0.15
 
-  # proportions:
-  pdf(file = file.path(outputFolder, "cell_proportion_barplot.pdf", fsep = .Platform$file.sep), width = 12)
-  layout(mat = matrix(1:2, 1), widths = c(10, 3))
-  par(mar = c(15, 5, 2, 1))
-  TIL_barplot(
-    mat = res$prop_of_nontumor[cells.to.plot, p2$tree_col$order],
-    draw_legend = TRUE,
-    ylab = "Proportions",
-    cex.names = namescex
+  # draw barplot:
+  bp <- barplot(mat,
+    cex.lab = 1.5,
+    col = col, border = NA,
+    cex.names = namescex,
+    las = 2, main = "", ylab = "Abundance scores",
+    ylim = c(ymin, max(colSums(mat)))
   )
+  # add color bars
+  for (name in rev(variables_to_plot)) {
+    yrange <- seq(ymin / 3, ymin, length.out = length(variables_to_plot) + 1)[match(name, variables_to_plot) + c(0, 1)]
+    xwidth <- (bp[2] - bp[1]) / 2
+    for (i in 1:ncol(mat)) {
+      rect(bp[i] - xwidth, yrange[2], bp[i] + xwidth, yrange[1],
+        border = NA, col = cols[[name]][segmentAnnotations[match(colnames(mat)[i], segmentAnnotations$segmentID), name]]
+      )
+    }
+  }
+  axis(2,
+    at = seq(ymin / 3, ymin, length.out = length(variables_to_plot) + 2)[-c(1, length(variables_to_plot) + 2)],
+    las = 2, labels = variables_to_plot, lty = 0, cex.axis = 0.75
+  )
+  # draw a legend:
+  par(mar = c(0.1, 0.1, 0.1, 0.1))
+  frame()
+  legendcols <- legendnames <- c()
+  for (name in rev(names(cols))) {
+    legendcols <- c(legendcols, NA, cols[[name]], NA)
+    legendnames <- c(legendnames, name, names(cols[[name]]), NA)
+  }
+  legend("center",
+    pch = 15,
+    col = c(legendcols, rep(NA, 1), rev(col)),
+    legend = c(legendnames, "Cell", rev(names(col)))
+  )
+
+
+
+
+  ### proportion barplot:
+  layout(mat = matrix(c(1, 2, 3, 3), 2), widths = c(10, 3, 10, 3), heights = c(1, 8, 10))
+  par(mar = c(0, 8.2, 0, 0.2))
+  plot(p1$tree_col, labels = F, main = "", ylab = "", yaxt = "n")
+  par(mar = c(15, 8, 0, 0))
+
+  # data to plot:
+  mat <- res$prop_of_nontumor[cells.to.plot, p2$tree_col$order]
+  # infer scale of negative y-axis for annotation colorbars
+  ymin <- -max(colSums(mat)) * 0.15
+  # draw barplot:
+  bp <- barplot(mat,
+    cex.lab = 1.5,
+    col = col, border = NA,
+    cex.names = namescex,
+    las = 2, main = "", ylab = "Proportion of fitted cells",
+    ylim = c(ymin, max(colSums(mat)))
+  )
+  # add color bars
+  for (name in rev(variables_to_plot)) {
+    yrange <- seq(ymin / 3, ymin, length.out = length(variables_to_plot) + 1)[match(name, variables_to_plot) + c(0, 1)]
+    xwidth <- (bp[2] - bp[1]) / 2
+    for (i in 1:ncol(mat)) {
+      rect(bp[i] - xwidth, yrange[2], bp[i] + xwidth, yrange[1],
+        border = NA, col = cols[[name]][segmentAnnotations[match(colnames(mat)[i], segmentAnnotations$segmentID), name]]
+      )
+    }
+  }
+  axis(2,
+    at = seq(ymin / 3, ymin, length.out = length(variables_to_plot) + 2)[-c(1, length(variables_to_plot) + 2)],
+    las = 2, labels = variables_to_plot, lty = 0, cex.axis = 0.75
+  )
+  # draw a legend:
+  par(mar = c(0.1, 0.1, 0.1, 0.1))
+  frame()
+  legendcols <- legendnames <- c()
+  for (name in rev(names(cols))) {
+    legendcols <- c(legendcols, NA, cols[[name]], NA)
+    legendnames <- c(legendnames, name, names(cols[[name]]), NA)
+  }
+  legend("center",
+    pch = 15,
+    col = c(legendcols, rep(NA, 1), rev(col)),
+    legend = c(legendnames, "Cell", rev(names(col)))
+  )
+
+
+
+
+
+  # spaceplots: draw separately for each cell:
+  if (FALSE) {
+    # ARGUMENTS: define which variables specify xy coordinates:
+    xpositionname <- "ROICoordinateX"
+    ypositionname <- "ROICoordinateY"
+    tissueidname <- "ScanName"
+
+
+    if (all(is.element(c(xpositionname, ypositionname, tissueidname), colnames(segmentAnnotations)))) {
+      if (all(!is.na(segmentAnnotations[, c(xpositionname, ypositionname, tissueidname)]))) {
+
+        # stratify on SegmentName if it has multiple levels:
+        # (assumption: SegmentName gives segment type, identifies the different kinds of AOIs that can share an ROI)
+        aoitype <- rep("", nrow(segmentAnnotations))
+        if (is.element("SegmentName", colnames(segmentAnnotations))) {
+          if (length(unique(segmentAnnotations[, "SegmentName"])) > 1) {
+            aoitype <- segmentAnnotations[, "SegmentName"]
+            aoitype <- replace(aoitype, is.na(aoitype), "na")
+          }
+        }
+        for (varname in variables_to_plot) {
+          # abundance spaceplots
+          for (atype in unique(aoitype)) {
+            for (cell in cells.to.plot) {
+              use <- aoitype == atype
+              sp <- spaceplot(
+                x = segmentAnnotations[use, xpositionname],
+                y = segmentAnnotations[use, ypositionname],
+                z = res$beta[cell, use],
+                tissue = segmentAnnotations[use, tissueidname],
+                tissue.order = NULL,
+                tissuecols = NULL,
+                tissuecols.alpha = 0.2,
+                rescale = TRUE,
+                cex = 3, col = cols[[varname]][segmentAnnotations[use, varname]],
+                nrow = NULL, rowind = NULL, colind = NULL,
+                expansion = 1.2,
+                main = cell
+              )
+              for (name in names(sp$boundaries)) {
+                text(
+                  x = median(range(sp$boundaries[[name]]$x)),
+                  y = max(sp$boundaries[[name]]$y),
+                  name
+                )
+              }
+            }
+          }
+
+          # proportion spaceplots
+          for (atype in unique(aoitype)) {
+            use <- aoitype == atype
+            for (cell in cells.to.plot) {
+              sp <- spaceplot(
+                x = segmentAnnotations[use, xpositionname],
+                y = segmentAnnotations[use, ypositionname],
+                z = replace(res$prop_of_nontumor[cell, use], is.na(res$prop_of_nontumor[cell, use]), 0),
+                tissue = segmentAnnotations[use, tissueidname],
+                tissue.order = NULL,
+                tissuecols = NULL,
+                tissuecols.alpha = 0.2,
+                rescale = TRUE,
+                cex = 3, col = cols[[varname]][segmentAnnotations[use, varname]],
+                nrow = NULL, rowind = NULL, colind = NULL,
+                expansion = 1.2,
+                main = cell
+              )
+              for (name in names(sp$boundaries)) {
+                text(
+                  x = median(range(sp$boundaries[[name]]$x)),
+                  y = max(sp$boundaries[[name]]$y),
+                  name
+                )
+              }
+            }
+          }
+        }
+      }
+    } # end spaceplots
+  }
   dev.off()
 }
 
+
+
+
+
+#' Assign colors to levels of factors
+#'
+#' Given a data frame of factors or character vectors, assigns a unique color to each unique
+#'  value of each variable.
+#' @param annot Annotation matrix or data frame
+#' @return A named list of named color vectors. Each element in the list is a variable, and the
+#'  named color vector it contains gives colors for each value the vector takes.
+assign_colors <- function(annot) {
+  # vector of colors to choose from:
+  colvec <- c(
+    "#E41A1C", "#377EB8", "#4DAF4A", "#984EA3", "#FF7F00", "#FFFF33", "#A65628", "#F781BF", "#999999",
+    "#66C2A5", "#FC8D62", "#8DA0CB", "#E78AC3", "#A6D854", "#FFD92F", "#E5C494", "#B3B3B3",
+    "#8DD3C7", "#FFFFB3", "#BEBADA", "#FB8072", "#80B1D3", "#FDB462", "#B3DE69", "#FCCDE5", "#D9D9D9", "#BC80BD", "#CCEBC5", "#FFED6F",
+    "#A6CEE3", "#B2DF8A",
+    "#FB9A99", "#FDBF6F",
+    "#CAB2D6", "#FFFF99",
+    "#33A02C", "#FF7F00", "#B15928",
+    "#1F78B4", "#E31A1C", "#6A3D9A",
+    sample(colors(), 100)
+  )
+  # subsidiary function to fade colors (works like the "alpha" function from the "scales" package)
+  fadecols <- function(cols, fade = .5) {
+    fcols <- c()
+    for (i in 1:length(cols))
+    {
+      tmp <- as.vector(col2rgb(cols[i]) / 256)
+      fcols[i] <- rgb(tmp[1], tmp[2], tmp[3], fade)
+    }
+    return(fcols)
+  }
+  colvec <- fadecols(colvec, 0.7)
+
+  # assign colors:
+  cols <- list()
+  colorby <- colnames(annot)
+  for (varname in colorby) {
+    varlevels <- as.character(unique(annot[, varname]))
+    cols[[varname]] <- colvec[1:length(varlevels)]
+    names(cols[[varname]]) <- varlevels
+    # remove the used colors from further consideration:
+    colvec <- setdiff(colvec, cols[[varname]]) # (disabling this so the more bold colors are re-used)
+  }
+
+  return(cols)
+}
+
+# SpatialDecon: mixed cell deconvolution for spatial and/or bulk gene expression
+# data
+#    This program is free software: you can redistribute it and/or modify it
+#    under the terms of the GNU General Public License as published by the Free
+#    Software Foundation, either version 3 of the License, or (at your option)
+#    any later version.
+#    This program is distributed in the hope that it will be useful, but WITHOUT
+#    ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+#    FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+#    more details.
+#    You should have received a copy of the GNU General Public License along
+#    with this program.  If not, see https://www.gnu.org/licenses/.
+# Contact us:
+# NanoString Technologies, Inc.
 
 
 
@@ -251,130 +575,166 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
 #' \item compute p-values
 #' }
 #'
-#' @param Y p-length expression vector or p * N expression matrix - the actual (linear-scale) data
+#' @param Y p-length expression vector or p * N expression matrix - the actual
+#' (linear-scale) data
 #' @param X p * K Training matrix.
-#' @param bg Expected background counts. Provide a scalar to apply to all data points, or
-#'  else a matrix/vector aligning with Y to provide more nuanced expected background.
+#' @param bg Expected background counts. Provide a scalar to apply to all
+#'  data points, or
+#'  else a matrix/vector aligning with Y to provide more nuanced expected
+#'   background.
 #' @param weights The same as the weights argument used by lm
-#' @param resid_thresh A scalar, sets a threshold on how extreme individual data points' values
+#' @param resid_thresh A scalar, sets a threshold on how extreme individual
+#' data points' values
 #'  can be (in log2 units) before getting flagged as outliers and set to NA.
-#' @param lower_thresh A scalar. Before log2-scale residuals are calculated, both observed and fitted
-#'  values get thresholded up to this value. Prevents log2-scale residuals from becoming extreme in
+#' @param lower_thresh A scalar. Before log2-scale residuals are calculated,
+#' both observed and fitted
+#'  values get thresholded up to this value. Prevents log2-scale residuals from
+#'  becoming extreme in
 #'  points near zero.
-#' @param align_genes Logical. If TRUE, then Y, X, bg, and wts are row-aligned by shared genes.
+#' @param align_genes Logical. If TRUE, then Y, X, bg, and wts are row-aligned
+#' by shared genes.
 #' @param maxit Maximum number of iterations. Default 1000.
 #' @return a list:
 #' \itemize{
-#' \item beta: matrix of cell abundance estimates, cells in rows and observations in columns
+#' \item beta: matrix of cell abundance estimates, cells in rows and
+#' observations in columns
 #' \item sigmas: covariance matrices of each observation's beta estimates
 #' \item p: matrix of p-values for H0: beta == 0
 #' \item t: matrix of t-statistics for H0: beta == 0
 #' \item se: matrix of standard errors of beta values
-#' \item resids: a matrix of residuals from the model fit. (log2(pmax(y, lower_thresh)) - log2(pmax(xb, lower_thresh))).
+#' \item resids: a matrix of residuals from the model fit.
+#' (log2(pmax(y, lower_thresh)) - log2(pmax(xb, lower_thresh))).
 #' }
-#' @export
 algorithm2 <- function(Y, X, bg = 0, weights = NULL,
                        resid_thresh = 3, lower_thresh = 0.5,
                        align_genes = TRUE, maxit = 1000) {
 
-  # align genes:
-  if (align_genes) {
-    sharedgenes <- intersect(rownames(X), rownames(Y))
-    Y <- Y[sharedgenes, ]
-    X <- X[sharedgenes, ]
-    if (is.matrix(bg)) {
-      bg <- bg[sharedgenes, ]
+    # align genes:
+    if (align_genes) {
+        sharedgenes <- intersect(rownames(X), rownames(Y))
+        Y <- Y[sharedgenes, ]
+        X <- X[sharedgenes, ]
+        if (is.matrix(bg)) {
+            bg <- bg[sharedgenes, ]
+        }
+        if (is.matrix(weights)) {
+            weights <- weights[sharedgenes, ]
+        }
     }
-    if (is.matrix(weights)) {
-      weights <- weights[sharedgenes, ]
+
+    # format the data nicely:
+    tidied <- tidy_X_and_Y(X, Y)
+    X <- tidied$X
+    Y <- tidied$Y
+    if ((length(bg) > 0) & (is.vector(bg))) {
+        bg <- matrix(bg, nrow = length(bg))
     }
-  }
 
-  # format the data nicely:
-  tidied <- tidy_X_and_Y(X, Y)
-  X <- tidied$X
-  Y <- tidied$Y
-  if ((length(bg) > 0) & (is.vector(bg))) {
-    bg <- matrix(bg, nrow = length(bg))
-  }
-
-  # select an epsilon (lowest non-zero value to use)
-  epsilon <- min(Y[(Y > 0) & !is.na(Y)])
+    # select an epsilon (lowest non-zero value to use)
+    epsilon <- min(Y[(Y > 0) & !is.na(Y)])
 
 
-  # initial run to look for outliers:
-  out0 <- deconLNR(Y = Y, X = X, bg = bg, weights = weights, epsilon = epsilon, maxit = maxit)
-  # also get yhat and resids:
-  out0$yhat <- X %*% out0$beta + bg
-  out0$resids <- log2(pmax(Y, lower_thresh)) - log2(pmax(out0$yhat, lower_thresh))
+    # initial run to look for outliers:
+    out0 <- deconLNR(
+        Y = Y, X = X, bg = bg, weights = weights, epsilon = epsilon,
+        maxit = maxit
+    )
+    # also get yhat and resids:
+    out0$yhat <- X %*% out0$beta + bg
+    out0$resids <- log2(pmax(Y, lower_thresh)) -
+        log2(pmax(out0$yhat, lower_thresh))
 
-  # ID bad genes:
-  outliers <- flagOutliers(
-    Y = Y,
-    yhat = out0$yhat,
-    wts = weights,
-    resids = out0$resids,
-    resid_thresh = resid_thresh
-  )
+    # ID bad genes:
+    outliers <- flagOutliers(
+        Y = Y,
+        yhat = out0$yhat,
+        wts = weights,
+        resids = out0$resids,
+        resid_thresh = resid_thresh
+    )
 
-  # remove outlier data points:
-  Y.nooutliers <- replace(Y, outliers, NA)
+    # remove outlier data points:
+    Y.nooutliers <- replace(Y, outliers, NA)
 
-  # re-run decon without outliers:
-  out <- deconLNR(Y = Y.nooutliers, X = X, bg = bg, weights = weights, epsilon = epsilon)
-  out$yhat <- X %*% out$beta + bg
-  out$resids <- log2(pmax(Y.nooutliers, 0.5)) - log2(pmax(out$yhat, 0.5))
+    # re-run decon without outliers:
+    out <- deconLNR(
+        Y = Y.nooutliers,
+        X = X,
+        bg = bg,
+        weights = weights,
+        epsilon = epsilon
+    )
+    out$yhat <- X %*% out$beta + bg
+    out$resids <- log2(pmax(Y.nooutliers, 0.5)) - log2(pmax(out$yhat, 0.5))
 
-  # compute p-values
-  tempbeta <- out$beta
-  tempse <- tempp <- tempt <- tempbeta * NA
-  for (i in seq_len(ncol(tempse))) {
-    tempse[, i] <- suppressWarnings(sqrt(diag(out$sigmas[, , i])))
-  }
-  tempt <- (tempbeta / tempse)
-  tempp <- 2 * (1 - stats::pt(tempt, df = nrow(X) - ncol(X) - 1))
-  out$p <- tempp
-  out$t <- tempt
-  out$se <- tempse
+    # compute p-values
+    tempbeta <- out$beta
+    tempse <- tempp <- tempt <- tempbeta * NA
+    for (i in seq_len(ncol(tempse))) {
+        tempse[, i] <- suppressWarnings(sqrt(diag(out$sigmas[, , i])))
+    }
+    tempt <- (tempbeta / tempse)
+    tempp <- 2 * (1 - stats::pt(tempt, df = nrow(X) - ncol(X) - 1))
+    out$p <- tempp
+    out$t <- tempt
+    out$se <- tempse
 
-  # structure of output: beta, hessians, yhat, resids
-  return(out)
+    # structure of output: beta, hessians, yhat, resids
+    return(out)
 }
 
 
 
 #' Function to format Y, X inputs for decon
 #'
-#' Takes user-supplied X and Y, checks for accuracy, aligns by dimnames, adds dimnames if missing
+#' Takes user-supplied X and Y, checks for accuracy, aligns by dimnames, adds
+#' dimnames if missing
 #'
 #' @param X X matrix
 #' @param Y Data matrix
-#' @return X and Y, both formatted as matrices, with full dimnames and aligned to each other by dimname
+#' @return X and Y, both formatted as matrices, with full dimnames and aligned
+#' to each other by dimname
 tidy_X_and_Y <- function(X, Y) {
 
-  # format as matrices:
-  Ynew <- Y
-  if (is.vector(Y)) {
-    Ynew <- matrix(Y, nrow = length(Y), dimnames = list(names(Y), "y"))
-  }
-  Xnew <- X
+    # format as matrices:
+    Ynew <- Y
+    if (is.vector(Y)) {
+        Ynew <- matrix(Y, nrow = length(Y), dimnames = list(names(Y), "y"))
+    }
+    Xnew <- X
 
-  # check alignment:
-  if (!identical(rownames(Y), rownames(X))) {
-    warning("Rows (genes) of X and Y are mis-aligned.")
-  }
-  out <- list(X = Xnew, Y = Ynew)
+    # check alignment:
+    if (!identical(rownames(Y), rownames(X))) {
+        warning("Rows (genes) of X and Y are mis-aligned.")
+    }
+    out <- list(X = Xnew, Y = Ynew)
 }
 
-
+# SpatialDecon: mixed cell deconvolution for spatial and/or bulk gene expression
+# data
+#    This program is free software: you can redistribute it and/or modify it
+#    under the terms of the GNU General Public License as published by the Free
+#    Software Foundation, either version 3 of the License, or (at your option)
+#    any later version.
+#    This program is distributed in the hope that it will be useful, but WITHOUT
+#    ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+#    FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+#    more details.
+#    You should have received a copy of the GNU General Public License along
+#    with this program.  If not, see https://www.gnu.org/licenses/.
+# Contact us:
+# NanoString Technologies, Inc.
 
 
 #' Collapse related cell types within a deconvolution result
 #'
-#' Given the input of an SpatialDecon result output and a list of which cell types to combine,
-#'  returns a reshaped deconvolution result object with the specified cell types merged.
+#' Given the input of an SpatialDecon result output and a list of which cell
+#' types to combine,
+#'  returns a reshaped deconvolution result object with the specified cell
+#'  types merged.
 #' @param fit The object (a list) returned by the SpatialDecon algorithm
-#' @param matching A list object holding the mapping from beta's cell names to official cell names.
+#' @param matching A list object holding the mapping from beta's cell names to
+#' official cell names.
 #'  See str(safeTME.matches) for an example.
 #' @return A reshaped deconvolution result object
 #' @examples
@@ -391,157 +751,208 @@ tidy_X_and_Y <- function(X, Y) {
 #'   bg = mini_geomx_dataset$bg,
 #'   X = safeTME
 #' )
-#' res1 <- collapseCellTypes(fit = res0, matching = safeTME.matches)
+#' res1 <- collapseCellTypes(
+#'   fit = res0,
+#'   matching = safeTME.matches
+#' )
 #' @export
 collapseCellTypes <- function(fit, matching) {
 
-  # results object to hold the collapsed results:
-  out <- fit
+    # results object to hold the collapsed results:
+    out <- fit
 
-  # format matching list as a matrix to take a linear combination of beta:
-  startingcellnames <- unlist(matching)
-  A <- matrix(0, length(matching), nrow(fit$beta), dimnames = list(names(matching), rownames(fit$beta)))
-  for (name in names(matching)) {
-    cellnames <- matching[[name]]
-    A[name, cellnames] <- 1
-  }
+    # format matching list as a matrix to take a linear combination of beta:
+    startingcellnames <- unlist(matching)
+    A <- matrix(0, length(matching), nrow(fit$beta),
+        dimnames = list(names(matching), rownames(fit$beta))
+    )
+    for (name in names(matching)) {
+        cellnames <- matching[[name]]
+        A[name, cellnames] <- 1
+    }
 
-  # apply A transformation to beta:
-  for (name in c("beta", "prop_of_all", "prop_of_nontumor")) {
-    if (is.element(name, names(fit))) {
-      out[[name]] <- A[, startingcellnames] %*% fit[[name]][startingcellnames, ]
+    # apply A transformation to beta:
+    for (name in c("beta", "prop_of_all", "prop_of_nontumor")) {
+        if (is.element(name, names(fit))) {
+            out[[name]] <- A[, startingcellnames] %*% fit[[name]][startingcellnames, ]
+        }
     }
-  }
 
-  # if Sigma provided, get vcov of beta2:
-  if (is.element("sigmas", names(out))) {
-    sigma <- fit$sigmas
-    if (length(dim(sigma)) == 2) {
-      out$sigmas <- A[, startingcellnames] %*% sigma[startingcellnames, startingcellnames, ] %*% t(A[, startingcellnames])
+    # if Sigma provided, get vcov of beta2:
+    if (is.element("sigmas", names(out))) {
+        sigma <- fit$sigmas
+        if (length(dim(sigma)) == 2) {
+            out$sigmas <- A[, startingcellnames] %*%
+                sigma[startingcellnames, startingcellnames, ] %*%
+                t(A[, startingcellnames])
+        }
+        if (length(dim(sigma)) == 3) {
+            out$sigmas <- array(NA,
+                dim = c(nrow(A), nrow(A), dim(sigma)[3]),
+                dimnames = list(rownames(A), rownames(A), dimnames(sigma)[[3]])
+            )
+            for (i in seq_len(dim(sigma)[3])) {
+                out$sigmas[, , i] <- A %*% sigma[, , i] %*% t(A)
+            }
+        }
     }
-    if (length(dim(sigma)) == 3) {
-      out$sigmas <- array(NA,
-        dim = c(nrow(A), nrow(A), dim(sigma)[3]),
-        dimnames = list(rownames(A), rownames(A), dimnames(sigma)[[3]])
-      )
-      for (i in seq_len(dim(sigma)[3])) {
-        out$sigmas[, , i] <- A %*% sigma[, , i] %*% t(A)
-      }
-    }
-  }
 
-  # re-calculate p, se, t:
-  if (is.element("beta", names(out)) & is.element("sigmas", names(out))) {
-    # compute p-values
-    tempbeta <- out$beta
-    tempse <- tempp <- tempt <- tempbeta * NA
-    for (i in seq_len(ncol(tempse))) {
-      tempse[, i] <- suppressWarnings(sqrt(diag(out$sigmas[, , i])))
+    # re-calculate p, se, t:
+    if (is.element("beta", names(out)) & is.element("sigmas", names(out))) {
+        # compute p-values
+        tempbeta <- out$beta
+        tempse <- tempp <- tempt <- tempbeta * NA
+        for (i in seq_len(ncol(tempse))) {
+            tempse[, i] <- suppressWarnings(sqrt(diag(out$sigmas[, , i])))
+        }
+        out$se <- tempse
+        out$t <- (tempbeta / tempse)
+        if (is.element("X", names(out))) {
+            out$p <- 2 * (1 - stats::pt(out$t, df = nrow(fit$X) - ncol(fit$X) - 1))
+        }
     }
-    out$se <- tempse
-    out$t <- (tempbeta / tempse)
-    if (is.element("X", names(out))) {
-      out$p <- 2 * (1 - stats::pt(out$t, df = nrow(fit$X) - ncol(fit$X) - 1))
-    }
-  }
 
-  return(out)
+    return(out)
 }
 
+# SpatialDecon: mixed cell deconvolution for spatial and/or bulk gene expression
+# data
+#    This program is free software: you can redistribute it and/or modify it
+#    under the terms of the GNU General Public License as published by the Free
+#    Software Foundation, either version 3 of the License, or (at your option)
+#    any later version.
+#    This program is distributed in the hope that it will be useful, but WITHOUT
+#    ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+#    FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+#    more details.
+#    You should have received a copy of the GNU General Public License along
+#    with this program.  If not, see https://www.gnu.org/licenses/.
+# Contact us:
+# NanoString Technologies, Inc.
 
 
 
 #' Convert abundance measurements to cell counts
 #'
-#' Converts cell abundance scores to cell counts, under the assumption that the observation with
+#' Converts cell abundance scores to cell counts, under the assumption that the
+#'  observation with
 #'  the greatest sum of cell abundance scores is 100% modelled cells.
-#' @param beta Matrix of cell abundance scores, with cells in rows and observations in columns. The
+#' @param beta Matrix of cell abundance scores, with cells in rows and
+#'  observations in columns. The
 #'  assumption is that this matrix is from well-normalized data.
-#' @param nuclei.counts Optional. A vector of total nuclei counts. If provided, the function will
+#' @param nuclei.counts Optional. A vector of total nuclei counts. If provided,
+#' the function will
 #'  output not only cells.per.100 but also total cells.
-#' @param omit.tumor Logical. If FALSE, any rows of beta with "tumor" in their name will be omitted.
-#' @return A list with two elements, each a rescaled version of beta. cells.per.100 gives estimated
+#' @param omit.tumor Logical. If FALSE, any rows of beta with "tumor" in their
+#' name will be omitted.
+#' @return A list with two elements, each a rescaled version of beta.
+#' cells.per.100 gives estimated
 #'  percents of total, and cell.counts is cells.per.100 * nuclei.counts.
-convertCellScoresToCounts <- function(beta, nuclei.counts = NULL, omit.tumor = FALSE) {
-  # strip tumor rows if called for:
-  if (omit.tumor) {
-    beta <- beta[!grepl("tumor", rownames(beta)), , drop = FALSE]
-  }
+convertCellScoresToCounts <- function(beta, nuclei.counts = NULL,
+                                      omit.tumor = FALSE) {
+    # strip tumor rows if called for:
+    if (omit.tumor) {
+        beta <- beta[!grepl("tumor", rownames(beta)), , drop = FALSE]
+    }
 
-  # calc max abundance scores:
-  max.total.abundance <- max(colSums(beta))
+    # calc max abundance scores:
+    max.total.abundance <- max(colSums(beta))
 
-  # calculate rescaled scores:
-  out <- list()
-  out$cells.per.100 <- beta / max.total.abundance * 100
-  if (length(nuclei.counts) == ncol(beta)) {
-    out$cell.counts <- sweep(out$cells.per.100, 2, nuclei.counts, "*") / 100
-  }
-  return(out)
+    # calculate rescaled scores:
+    out <- list()
+    out$cells.per.100 <- beta / max.total.abundance * 100
+    if (length(nuclei.counts) == ncol(beta)) {
+        out$cell.counts <- sweep(out$cells.per.100, 2, nuclei.counts, "*") / 100
+    }
+    return(out)
 }
 
+# SpatialDecon: mixed cell deconvolution for spatial and/or bulk gene expression
+# data
+#    This program is free software: you can redistribute it and/or modify it
+#    under the terms of the GNU General Public License as published by the Free
+#    Software Foundation, either version 3 of the License, or (at your option)
+#    any later version.
+#    This program is distributed in the hope that it will be useful, but WITHOUT
+#    ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+#    FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+#    more details.
+#    You should have received a copy of the GNU General Public License along
+#    with this program.  If not, see https://www.gnu.org/licenses/.
+# Contact us:
+# NanoString Technologies, Inc.
 
 
 
-
-#' Convert results from an arbitrary training matrix to our standardized cell types.
+#' Convert results from an arbitrary training matrix to our standardized cell
+#' types.
 #'
-#' Takes betas from a decon run, using any cell type names whatsoever, and maps them back to the
-#' "official" cell types we use. Allows for multiple rows of beta to map to the same official cell type,
+#' Takes betas from a decon run, using any cell type names whatsoever, and maps
+#'  them back to the
+#' "official" cell types we use. Allows for multiple rows of beta to map to the
+#'  same official cell type,
 #' in which case those rows will be added up.
 #'
 #' @param beta K * n matrix of estimated beta values (cell type abundances)
-#' @param matching A list object holding the mapping from beta's cell names to official cell names.
+#' @param matching A list object holding the mapping from beta's cell names to
+#'  official cell names.
 #'  See str(safeTME.matches) for an example.
 #' @param stat The function used to combine related cell types. Defaults to sum.
 #' @param na.rm Whether to ignore NAs while computing stat
-#' @param sigma A list of covariance matrices of beta estimates, in the format output by spatialdecon.
+#' @param sigma A list of covariance matrices of beta estimates, in the format
+#'  output by spatialdecon.
 #' @return A list with two elements:
 #' \itemize{
-#' \item beta: a matrix of cell abundances, with specified cell types added together
-#' \item sigma: an array of covariance matrices for each observation's beta vector
+#' \item beta: a matrix of cell abundances, with specified cell types added
+#' together
+#' \item sigma: an array of covariance matrices for each observation's beta
+#' vector
 #' }
-convertCellTypes <- function(beta, matching, stat = sum, na.rm = FALSE, sigma = NULL) {
-  # format matching list as a matrix to take a linear combination of beta:
-  A <- matrix(0, length(matching), nrow(beta), dimnames = list(names(matching), rownames(beta)))
-  for (name in names(matching)) {
-    cellnames <- matching[[name]]
-    A[name, cellnames] <- 1
-  }
-
-  # apply A transformation to beta:
-  beta2 <- A %*% beta
-
-  # if Sigma provided, get vcov of beta2:
-  if (length(sigma) > 0) {
-    if (length(dim(sigma)) == 2) {
-      sigma2 <- A %*% sigma %*% t(A)
+convertCellTypes <- function(beta, matching, stat = sum,
+                             na.rm = FALSE, sigma = NULL) {
+    # format matching list as a matrix to take a linear combination of beta:
+    A <- matrix(0, length(matching), nrow(beta),
+        dimnames = list(names(matching), rownames(beta))
+    )
+    for (name in names(matching)) {
+        cellnames <- matching[[name]]
+        A[name, cellnames] <- 1
     }
-    if (length(dim(sigma)) == 3) {
-      sigma2 <- array(NA,
-        dim = c(nrow(A), nrow(A), dim(sigma)[3]),
-        dimnames = list(rownames(A), rownames(A), dimnames(sigma)[[3]])
-      )
-      for (i in seq_len(dim(sigma)[3])) {
-        sigma2[, , i] <- A %*% sigma[, , i] %*% t(A)
-      }
-    }
-  }
 
-  # if no Sigma, just return transformed beta:
-  if (length(sigma) == 0) {
-    return(beta2)
-  }
-  # if there is a sigma, return beta and the sigma:
-  if (length(sigma) > 0) {
-    out <- list(beta = beta2, sigma = sigma2)
-    return(out)
-  }
+    # apply A transformation to beta:
+    beta2 <- A %*% beta
+
+    # if Sigma provided, get vcov of beta2:
+    if (length(sigma) > 0) {
+        if (length(dim(sigma)) == 2) {
+            sigma2 <- A %*% sigma %*% t(A)
+        }
+        if (length(dim(sigma)) == 3) {
+            sigma2 <- array(NA,
+                dim = c(nrow(A), nrow(A), dim(sigma)[3]),
+                dimnames = list(rownames(A), rownames(A), dimnames(sigma)[[3]])
+            )
+            for (i in seq_len(dim(sigma)[3])) {
+                sigma2[, , i] <- A %*% sigma[, , i] %*% t(A)
+            }
+        }
+    }
+
+    # if no Sigma, just return transformed beta:
+    if (length(sigma) == 0) {
+        return(beta2)
+    }
+    # if there is a sigma, return beta and the sigma:
+    if (length(sigma) > 0) {
+        out <- list(beta = beta2, sigma = sigma2)
+        return(out)
+    }
 }
 
 #' Default colors for the cell types in the safeTME matrix
 #'
-#' A named vector of colors, giving colors for the cell types of the safeTME matrix.
+#' A named vector of colors, giving colors for the cell types of the safeTME
+#'  matrix.
 #'
 #' @format A named vector
 "cellcols"
@@ -549,7 +960,8 @@ convertCellTypes <- function(beta, matching, stat = sum, na.rm = FALSE, sigma = 
 
 #' Default colors for the cell types in the safeTME matrix
 #'
-#' A named vector of colors, giving colors for the cell types of the safeTME matrix.
+#' A named vector of colors, giving colors for the cell types of the safeTME
+#'  matrix.
 #'
 #' @format A named vector
 "mini_geomx_dataset"
@@ -560,7 +972,8 @@ convertCellTypes <- function(beta, matching, stat = sum, na.rm = FALSE, sigma = 
 #' Mapping from granularly-defined cell populations to broaded cell populations,
 #'  for use by the convertCellTypes function.
 #'
-#' @format A list. Each element of the list contains the granular cell types that roll up
+#' @format A list. Each element of the list contains the granular cell types
+#'  that roll up
 #'  to a single coarse cell type.
 "safeTME.matches"
 
@@ -575,101 +988,137 @@ convertCellTypes <- function(beta, matching, stat = sum, na.rm = FALSE, sigma = 
 
 #' Genes' biological variability in immune deconvolution from TCGA.
 #'
-#' Genes' biological SDs, as estimated from immune deconvolution from TCGA. Used to weight
-#'  genes in spatialdecon.
+#' Genes' biological SDs, as estimated from immune deconvolution from TCGA.
+#' Used to weight genes in spatialdecon.
 #'
 #' @format A named vector giving SDs of 1179 genes.
 "mean.resid.sd"
 
+# SpatialDecon: mixed cell deconvolution for spatial and/or bulk gene expression
+# data
+#    This program is free software: you can redistribute it and/or modify it
+#    under the terms of the GNU General Public License as published by the Free
+#    Software Foundation, either version 3 of the License, or (at your option)
+#    any later version.
+#    This program is distributed in the hope that it will be useful, but WITHOUT
+#    ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+#    FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+#    more details.
+#    You should have received a copy of the GNU General Public License along
+#    with this program.  If not, see https://www.gnu.org/licenses/.
+# Contact us:
+# NanoString Technologies, Inc.
 
 
 
 
-#' Deconvolution using logNormReg package to run linear mean model and log error model
+#' Deconvolution using logNormReg package to run linear mean model and log error
+#'  model
 #'
 #' Calls lognlm() to optimize the model.
 #'
-#' @param Y p-length expression vector or p * N expression matrix - the actual (linear-scale) data
+#' @param Y p-length expression vector or p * N expression matrix - the actual
+#'  (linear-scale) data
 #' @param X p * K Training matrix
 #' @param bg scalar or matrix of expected background counts per data point.
 #' @param weights The same as the weights argument used by lm
-#' @param epsilon optional,  a very small non-zero number to use as a lower threshold to make fits well-behaved
+#' @param epsilon optional,  a very small non-zero number to use as a lower
+#' threshold to make fits well-behaved
 #' @param maxit Maximum number of iterations. Default 1000.
-#' @return a list: beta (estimate), sigmas (covariance matrix of estimate, derived by inverting the hessian from lognlm)
+#' @return a list: beta (estimate), sigmas (covariance matrix of estimate,
+#' derived by inverting the hessian from lognlm)
 #' @import logNormReg
-deconLNR <- function(Y, X, bg = 0, weights = NULL, epsilon = NULL, maxit = 1000) {
-  if (length(weights) == 0) {
-    weights <- replace(Y, TRUE, 1)
-  }
-  if (is.vector(Y)) {
-    Y <- matrix(Y, nrow = length(Y))
-  }
-  if (length(bg) == 1) {
-    bg <- matrix(bg, nrow(Y), ncol(Y))
-  }
-  # choose "epsilon": a very small non-zero number to make fits well-behaved
-  if (length(epsilon) == 0) {
-    epsilon <- min(replace(Y, (Y == 0) & !is.na(Y), NA), na.rm = TRUE)
-  }
+deconLNR <- function(Y, X, bg = 0, weights = NULL, epsilon = NULL,
+                     maxit = 1000) {
+    if (length(weights) == 0) {
+        weights <- replace(Y, TRUE, 1)
+    }
+    if (is.vector(Y)) {
+        Y <- matrix(Y, nrow = length(Y))
+    }
+    if (length(bg) == 1) {
+        bg <- matrix(bg, nrow(Y), ncol(Y))
+    }
+    # choose "epsilon": a very small non-zero number to make fits well-behaved
+    if (length(epsilon) == 0) {
+        epsilon <- min(replace(Y, (Y == 0) & !is.na(Y), NA), na.rm = TRUE)
+    }
 
-  # matrix-like data for apply:
-  mat <- rbind(Y, bg, weights)
-  # fn to apply:
-  fn <- function(zz) {
-    # break into y, b, w:
-    y <- zz[seq_len((length(zz)) / 3)]
-    b <- zz[seq_len((length(zz)) / 3) + (length(zz) / 3)]
-    wts <- zz[seq_len((length(zz)) / 3) + (length(zz) / 3) * 2]
+    # matrix-like data for apply:
+    mat <- rbind(Y, bg, weights)
+    # fn to apply:
+    fn <- function(zz) {
+        # break into y, b, w:
+        y <- zz[seq_len((length(zz)) / 3)]
+        b <- zz[seq_len((length(zz)) / 3) + (length(zz) / 3)]
+        wts <- zz[seq_len((length(zz)) / 3) + (length(zz) / 3) * 2]
 
-    # remove NA data:
-    use <- !is.na(y)
-    y <- y[use]
-    b <- b[use]
-    Xtemp <- X[use, , drop = FALSE]
-    wts <- wts[use]
+        # remove NA data:
+        use <- !is.na(y)
+        y <- y[use]
+        b <- b[use]
+        Xtemp <- X[use, , drop = FALSE]
+        wts <- wts[use]
 
-    init <- rep(mean(y) / (mean(X) * ncol(X)), ncol(X))
-    names(init) <- colnames(X)
+        init <- rep(mean(y) / (mean(X) * ncol(X)), ncol(X))
+        names(init) <- colnames(X)
 
-    # run lognlm:
-    fit <- lognlm(pmax(y, epsilon) ~ b + Xtemp - 1,
-      lik = FALSE,
-      weights = wts,
-      start = c(1, init),
-      method = "L-BFGS-B",
-      lower = c(1, rep(0, ncol(Xtemp))),
-      upper = c(1, rep(Inf, ncol(Xtemp))),
-      opt = "optim",
-      control = list(maxit = maxit)
-    )
-    fnout <- list(
-      beta = fit$coefficients[-1],
-      sigma = solve(fit$hessian)[-1, -1]
-    )
-    return(fnout)
-  }
-  # apply across all observations:
-  fnlist <- apply(mat, 2, fn)
-  # extract beta and sigmas:
-  getbeta <- function(zz) {
-    return(zz$beta)
-  }
-  getsigma <- function(zz) {
-    return(zz$sigma)
-  }
+        # run lognlm:
+        fit <- lognlm(pmax(y, epsilon) ~ b + Xtemp - 1,
+            lik = FALSE,
+            weights = wts,
+            start = c(1, init),
+            method = "L-BFGS-B",
+            lower = c(1, rep(0, ncol(Xtemp))),
+            upper = c(1, rep(Inf, ncol(Xtemp))),
+            opt = "optim",
+            control = list(maxit = maxit)
+        )
+        fnout <- list(
+            beta = fit$coefficients[-1],
+            sigma = solve(fit$hessian)[-1, -1]
+        )
+        return(fnout)
+    }
+    # apply across all observations:
+    fnlist <- apply(mat, 2, fn)
+    # extract beta and sigmas:
+    getbeta <- function(zz) {
+        return(zz$beta)
+    }
+    getsigma <- function(zz) {
+        return(zz$sigma)
+    }
 
-  beta <- sapply(fnlist, getbeta)
-  rownames(beta) <- colnames(X)
-  sigmas <- array(sapply(fnlist, getsigma),
+    beta <- vapply(X = fnlist, FUN = getbeta, FUN.VALUE = numeric(ncol(X)))
+    rownames(beta) <- colnames(X)
+    sigmas <- array(vapply(
+        X = fnlist,
+        FUN = getsigma,
+        FUN.VALUE = numeric(ncol(X)^2)
+    ),
     dim = c(ncol(X), ncol(X), ncol(Y)),
     dimnames = list(colnames(X), colnames(X), colnames(Y))
-  )
+    )
 
-  out <- list(beta = pmax(beta, 0), sigmas = sigmas)
-  return(out)
+    out <- list(beta = pmax(beta, 0), sigmas = sigmas)
+    return(out)
 }
 
-
+# SpatialDecon: mixed cell deconvolution for spatial and/or bulk gene expression
+# data
+#    This program is free software: you can redistribute it and/or modify it
+#    under the terms of the GNU General Public License as published by the Free
+#    Software Foundation, either version 3 of the License, or (at your option)
+#    any later version.
+#    This program is distributed in the hope that it will be useful, but WITHOUT
+#    ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+#    FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+#    more details.
+#    You should have received a copy of the GNU General Public License along
+#    with this program.  If not, see https://www.gnu.org/licenses/.
+# Contact us:
+# NanoString Technologies, Inc.
 
 
 
@@ -677,13 +1126,17 @@ deconLNR <- function(Y, X, bg = 0, weights = NULL, epsilon = NULL, maxit = 1000)
 #'
 #' Estimates per-datapoint background levels from a GeoMx experiment.
 #' In studies with two or more probe pools, different probes will have different
-#' background levels. This function provides a convenient way to account for this phenomenon.
+#' background levels. This function provides a convenient way to account for
+#' this phenomenon.
 #'
 #' @param norm Matrix of normalized data, genes in rows and segments in columns.
 #'  Must include negprobes, and must have rownames.
-#' @param probepool Vector of probe pool names for each gene, aligned to the rows of "norm".
-#' @param negnames Names of all negProbes in the dataset. Must be at least one neg.name within each probe pool.
-#' @return A matrix of expected background values, in the same scale and dimensions as the "norm" argument.
+#' @param probepool Vector of probe pool names for each gene, aligned to the
+#' rows of "norm".
+#' @param negnames Names of all negProbes in the dataset. Must be at least one
+#'  neg.name within each probe pool.
+#' @return A matrix of expected background values, in the same scale and
+#'  dimensions as the "norm" argument.
 #' @examples
 #' data(mini_geomx_dataset)
 #' # estimate background:
@@ -695,30 +1148,46 @@ deconLNR <- function(Y, X, bg = 0, weights = NULL, epsilon = NULL, maxit = 1000)
 #' @export
 derive_GeoMx_background <- function(norm, probepool, negnames) {
 
-  # check data input:
-  if (nrow(norm) != length(probepool)) {
-    stop("nrow(norm) != length(probepool)")
-  }
-
-  # initialize:
-  bg <- norm * 0
-
-
-  # fill in expected background at scale of normalized data:
-  for (pool in unique(probepool)) {
-
-    # get the pool's negProbes:
-    tempnegs <- intersect(negnames, rownames(norm)[probepool == pool])
-    if (length(tempnegs) == 0) {
-      stop(paste0(pool, " probe pool didn't have any negprobes specified"))
+    # check data input:
+    if (nrow(norm) != length(probepool)) {
+        stop("nrow(norm) != length(probepool)")
     }
-    tempnegfactor <- colMeans(norm[tempnegs, , drop = FALSE])
 
-    # fill in the corresponding elements of bg:
-    bg[probepool == pool, ] <- sweep(bg[probepool == pool, ], 2, tempnegfactor, "+")
-  }
-  return(bg)
+    # initialize:
+    bg <- norm * 0
+
+
+    # fill in expected background at scale of normalized data:
+    for (pool in unique(probepool)) {
+
+        # get the pool's negProbes:
+        tempnegs <- intersect(negnames, rownames(norm)[probepool == pool])
+        if (length(tempnegs) == 0) {
+            stop(paste0(pool, " probe pool didn't have any negprobes specified"))
+        }
+        tempnegfactor <- colMeans(norm[tempnegs, , drop = FALSE])
+
+        # fill in the corresponding elements of bg:
+        bg[probepool == pool, ] <-
+            sweep(bg[probepool == pool, ], 2, tempnegfactor, "+")
+    }
+    return(bg)
 }
+
+# SpatialDecon: mixed cell deconvolution for spatial and/or bulk gene expression
+# data
+#    This program is free software: you can redistribute it and/or modify it
+#    under the terms of the GNU General Public License as published by the Free
+#    Software Foundation, either version 3 of the License, or (at your option)
+#    any later version.
+#    This program is distributed in the hope that it will be useful, but WITHOUT
+#    ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+#    FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+#    more details.
+#    You should have received a copy of the GNU General Public License along
+#    with this program.  If not, see https://www.gnu.org/licenses/.
+# Contact us:
+# NanoString Technologies, Inc.
 
 
 
@@ -727,14 +1196,18 @@ derive_GeoMx_background <- function(norm, probepool, negnames) {
 #'
 #' Compute gene weights from pre-defined biological noise estimates and from
 #'  raw count/ error-model-defined technical noise estimates
-#' @param norm Matrix of data used in decon. Used to define the gene list and the
+#' @param norm Matrix of data used in decon. Used to define the gene list and
+#' the
 #' shape of the output "wts" matrix.
 #' @param raw Matrix of raw data. If provided, used to define technical noise
 #' @param error.model Which error model to use. Defaults to "dsp"
-#' @param weight.by.TIL.resid.sd If TRUE, then genes are weighted in part based on their
-#'  biological variability as estimated by their residual SD from decon performed on TCGA.
+#' @param weight.by.TIL.resid.sd If TRUE, then genes are weighted in part based
+#' on their
+#'  biological variability as estimated by their residual SD from decon
+#'   performed on TCGA.
 #' @return A matrix of weights, in the same dimension as norm
-deriveWeights <- function(norm, raw = NULL, error.model = "dsp", weight.by.TIL.resid.sd = FALSE) {
+deriveWeights <- function(norm, raw = NULL, error.model = "dsp",
+                          weight.by.TIL.resid.sd = FALSE) {
 
   # get tech SDs if raw data provided:
   if (length(raw) == 0) {
@@ -747,14 +1220,17 @@ deriveWeights <- function(norm, raw = NULL, error.model = "dsp", weight.by.TIL.r
     )
   }
 
-  # if the mean.resid.sd vector (which defines genes' biological SD) is in the environment,
-  # get biological noise:
+  # if the mean.resid.sd vector (which defines genes' biological SD) is in
+  # the environment, get biological noise:
   if (!weight.by.TIL.resid.sd) {
     sds.bio <- matrix(0.1, nrow(raw), ncol(raw), dimnames = dimnames(raw))
   }
   if (weight.by.TIL.resid.sd) {
     sds.bio <- matrix(NA, nrow(raw), ncol(raw), dimnames = dimnames(raw))
-    for (gene in intersect(names(mean.resid.sd), rownames(sds.bio))) {
+    for (gene in intersect(
+      names(mean.resid.sd),
+      rownames(sds.bio)
+    )) {
       sds.bio[gene, ] <- mean.resid.sd[gene]
     }
     sds.bio <- replace(sds.bio, is.na(sds.bio), mean(sds.bio, na.rm = TRUE))
@@ -766,7 +1242,20 @@ deriveWeights <- function(norm, raw = NULL, error.model = "dsp", weight.by.TIL.r
   return(wts)
 }
 
-
+# SpatialDecon: mixed cell deconvolution for spatial and/or bulk gene expression
+# data
+#    This program is free software: you can redistribute it and/or modify it
+#    under the terms of the GNU General Public License as published by the Free
+#    Software Foundation, either version 3 of the License, or (at your option)
+#    any later version.
+#    This program is distributed in the hope that it will be useful, but WITHOUT
+#    ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+#    FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+#    more details.
+#    You should have received a copy of the GNU General Public License along
+#    with this program.  If not, see https://www.gnu.org/licenses/.
+# Contact us:
+# NanoString Technologies, Inc.
 
 
 
@@ -813,88 +1302,125 @@ deriveWeights <- function(norm, raw = NULL, error.model = "dsp", weight.by.TIL.r
 #' @export
 download_profile_matrix <- function(matrixname) {
 
-  # check formatting:
+    # check formatting:
+    if (length(matrixname) > 1) {
+        stop("specify just one matrixname")
+    }
 
-  if (length(matrixname) > 1) {
-    stop("specify just one matrixname")
-  }
+    librarynames <- c(
+        "Airway_Epithelium", "Atlas_Adult_Retina_10x", "Census_Adult_Immune_10x",
+        "Census_Newborn_Blood_10x", "Diff_Fetal_Neuron_SS2",
+        "FetalMaternal_Adult_Blood_10x", "FetalMaternal_Adult_Blood_SS2",
+        "FetalMaternal_Adult_Decidua_10x", "FetalMaternal_Adult_Decidua_SS2",
+        "FetalMaternal_Fetal_Placenta_10x", "Human_brain", "Human_Cell_Landscape",
+        "IBD_Adult_Colon_10x", "Landscape_Adult_Liver_10x",
+        "Lung_plus_neutrophils", "Mouse_Brain", "Profiling_Adult_BoneMarrow_10x",
+        "Reprogram_Embryo_Dendritic_10x", "Sensitivity_Adult_Esophagus_10x",
+        "Sensitivity_Adult_Lung_10x", "Sensitivity_Adult_Spleen_10x",
+        "Somatic_Adult_Pancreas_SS2", "SpatioTemporal_Adult_Kidney_10x",
+        "SpatioTemporal_Fetal_Kidney_10x", "Tcell_Adult_Blood_10x",
+        "Tcell_Adult_BoneMarrow_10x", "Tcell_Adult_Lung_10x",
+        "Tcell_Adult_LymphNode_10x"
+    )
+    if (!is.element(matrixname, librarynames)) {
+        warning(paste0(matrixname, " is not an expected cell profile matrix name."))
+    }
 
-  librarynames <- c(
-    "Airway_Epithelium", "Atlas_Adult_Retina_10x", "Census_Adult_Immune_10x",
-    "Census_Newborn_Blood_10x", "Diff_Fetal_Neuron_SS2", "FetalMaternal_Adult_Blood_10x",
-    "FetalMaternal_Adult_Blood_SS2", "FetalMaternal_Adult_Decidua_10x",
-    "FetalMaternal_Adult_Decidua_SS2", "FetalMaternal_Fetal_Placenta_10x", "Human_brain",
-    "Human_Cell_Landscape", "IBD_Adult_Colon_10x", "Landscape_Adult_Liver_10x",
-    "Lung_plus_neutrophils", "Mouse_Brain", "Profiling_Adult_BoneMarrow_10x",
-    "Reprogram_Embryo_Dendritic_10x", "Sensitivity_Adult_Esophagus_10x",
-    "Sensitivity_Adult_Lung_10x", "Sensitivity_Adult_Spleen_10x", "Somatic_Adult_Pancreas_SS2",
-    "SpatioTemporal_Adult_Kidney_10x", "SpatioTemporal_Fetal_Kidney_10x", "Tcell_Adult_Blood_10x",
-    "Tcell_Adult_BoneMarrow_10x", "Tcell_Adult_Lung_10x", "Tcell_Adult_LymphNode_10x"
-  )
-  if (!is.element(matrixname, librarynames)) {
-    warning(paste0(matrixname, " is not an expected cell profile matrix name."))
-  }
+    X <- as.matrix(utils::read.csv(paste0(
+        "https://raw.githubusercontent.com/patrickjdanaher/cell-profile-library/master/profile_matrices/",
+        matrixname, ".csv"
+    ), row.names = 1))
 
-  # X = as.matrix(utils::read.csv(paste0("https://github.com/Nanostring-Biostats/Extensions/blob/refactor/cell-profile-library/",
-  X <- as.matrix(utils::read.csv(paste0(
-    "https://raw.githubusercontent.com/patrickjdanaher/cell-profile-library/master/profile_matrices/",
-    matrixname, ".csv"
-  ), row.names = 1))
-
-  X <- X[rowSums(X) > 0, ]
-  return(X)
+    X <- X[rowSums(X) > 0, ]
+    return(X)
 }
 
+# SpatialDecon: mixed cell deconvolution for spatial and/or bulk gene expression
+# data
+#    This program is free software: you can redistribute it and/or modify it
+#    under the terms of the GNU General Public License as published by the Free
+#    Software Foundation, either version 3 of the License, or (at your option)
+#    any later version.
+#    This program is distributed in the hope that it will be useful, but WITHOUT
+#    ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+#    FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+#    more details.
+#    You should have received a copy of the GNU General Public License along
+#    with this program.  If not, see https://www.gnu.org/licenses/.
+# Contact us:
+# NanoString Technologies, Inc.
 
 
 
 #' Identify outlier genes in a decon result
 #'
-#' Analyses a decon result's residuals to identify poorly-fit genes and flag them for removal.
+#' Analyses a decon result's residuals to identify poorly-fit genes and flag
+#' them for removal.
 #'  Rule: flag anything with
 #'
-#' @param Y p-length expression vector or p * N expression matrix - the actual (linear-scale) data
+#' @param Y p-length expression vector or p * N expression matrix - the actual
+#' (linear-scale) data
 #' @param yhat Expectation of Y given the decon fit
-#' @param resids Log2-scale residuals of Y vs. yhat (log2(pmax(Y, 0.5)) - log2(yhat))
+#' @param resids Log2-scale residuals of Y vs. yhat
+#' (log2(pmax(Y, 0.5)) - log2(yhat))
 #' @param wts Matrix of data point weights, aligned to dimensions of resids
-#' @param resid_thresh A scalar, sets a threshold on how extreme individual data points' values
+#' @param resid_thresh A scalar, sets a threshold on how extreme individual
+#' data points' values
 #'  can be (in log2 units) before getting flagged as outliers and set to NA.
 #' @return a vector of names of poorly-fit genes
-#' @export
 flagOutliers <- function(Y, yhat, resids, wts, resid_thresh = 3) {
 
-  # get weighted resids:
-  if (length(wts) == 0) {
-    wres <- resids
-  }
-  if (length(wts) > 0) {
-    wres <- resids * wts
-  }
+    # get weighted resids:
+    if (length(wts) == 0) {
+        wres <- resids
+    }
+    if (length(wts) > 0) {
+        wres <- resids * wts
+    }
 
-  # flag bad genes:
-  outlier_genes <- c() # <------------------- this line makes it so no outlier genes are filtered
-  # flag bad data points: (not doing anything for now)
-  outlier_data_points <- abs(resids) > resid_thresh
-  return(outlier_data_points)
+    # flag bad genes:
+    outlier_genes <- c() # <-- this line makes it so no outlier genes are filtered
+    # flag bad data points: (not doing anything for now)
+    outlier_data_points <- abs(resids) > resid_thresh
+    return(outlier_data_points)
 }
 
-
+# SpatialDecon: mixed cell deconvolution for spatial and/or bulk gene expression
+# data
+#    This program is free software: you can redistribute it and/or modify it
+#    under the terms of the GNU General Public License as published by the Free
+#    Software Foundation, either version 3 of the License, or (at your option)
+#    any later version.
+#    This program is distributed in the hope that it will be useful, but WITHOUT
+#    ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+#    FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+#    more details.
+#    You should have received a copy of the GNU General Public License along
+#    with this program.  If not, see https://www.gnu.org/licenses/.
+# Contact us:
+# NanoString Technologies, Inc.
 
 
 #' Draw coxcomb plots as points in a graphics window
 #'
-#' Draws a scatterplot where each point is a circular barplot, intended to show decon results
+#' Draws a scatterplot where each point is a circular barplot, intended to show
+#' decon results
 #'
 #' @param x Vector of x coordinates
 #' @param y Vector of y coordinates
-#' @param b matrix or cell abundances, with columns aligned with the elements of x and y
+#' @param b matrix or cell abundances, with columns aligned with the elements
+#' of x and y
 #' @param col vector of colors, aligned to the rows of b.
-#' @param legendwindow Logical. If TRUE, the function draws a color legend in a new window
-#' @param rescale.by.sqrt Logical, for whether to rescale b by its square root to make value proportional to
+#' @param legendwindow Logical. If TRUE, the function draws a color legend in a
+#'  new window
+#' @param rescale.by.sqrt Logical, for whether to rescale b by its square root
+#' to make value proportional to
 #'  shape area, not shape length.
 #' @param border Color of pie segment border, defauls to NA/none
-#' @param add Logical. If TRUE, the function draws florets atop an existing graphics device (TRUE) or call a new device (FALSE).
-#' @param cex Floret size. Florets are scaled relative to the range of x and y; this further scales up or down.
+#' @param add Logical. If TRUE, the function draws florets atop an existing
+#' graphics device (TRUE) or call a new device (FALSE).
+#' @param cex Floret size. Florets are scaled relative to the range of x and y;
+#' this further scales up or down.
 #' @param bty bty argument passed to plot()
 #' @param xaxt xaxt argument passed to plot()
 #' @param yaxt yaxt argument passed to plot()
@@ -923,9 +1449,10 @@ flagOutliers <- function(Y, yhat, resids, wts, resid_thresh = 3) {
 #'   b = res0$beta, cex = 2
 #' )
 #' @export
-florets <- function(x, y, b, col = NULL, legendwindow = FALSE, rescale.by.sqrt = TRUE,
-                    border = NA, add = FALSE, cex = 1,
-                    bty = "n", xaxt = "n", yaxt = "n", xlab = "", ylab = "", ...) {
+florets <- function(x, y, b, col = NULL, legendwindow = FALSE,
+                    rescale.by.sqrt = TRUE, border = NA, add = FALSE, cex = 1,
+                    bty = "n", xaxt = "n", yaxt = "n", xlab = "", ylab = "",
+                    ...) {
   # rescale b by sqrt so magnitude is proportional to coxcomb area, not length
   if (rescale.by.sqrt) {
     b <- sqrt(b)
@@ -938,15 +1465,18 @@ florets <- function(x, y, b, col = NULL, legendwindow = FALSE, rescale.by.sqrt =
     rm(b2)
   }
   # choose colors if not given:
-  if ((length(col) == 0) & all(is.element(rownames(b), names(cellcols)))) {
+  if ((length(col) == 0) &
+    all(is.element(rownames(b), names(cellcols)))) {
     col <- cellcols[rownames(b)]
   }
-  if ((length(col) == 0) & !all(is.element(rownames(b), names(cellcols)))) {
+  if ((length(col) == 0) &
+    !all(is.element(rownames(b), names(cellcols)))) {
     manycols <- c(
-      "#8DD3C7", "#FFFFB3", "#BEBADA", "#FB8072", "#80B1D3", "#FDB462", "#B3DE69",
-      "#FCCDE5", "#A6CEE3", "#1F78B4", "#B2DF8A", "#33A02C", "#FB9A99", "#E31A1C",
-      "#FDBF6F", "#FF7F00", "#1B9E77", "#D95F02", "#7570B3", "#E7298A", "#66A61E",
-      "#E6AB02", "#A6761D", "#666666", sample(grDevices::colors(), 99)
+      "#8DD3C7", "#FFFFB3", "#BEBADA", "#FB8072", "#80B1D3", "#FDB462",
+      "#B3DE69", "#FCCDE5", "#A6CEE3", "#1F78B4", "#B2DF8A", "#33A02C",
+      "#FB9A99", "#E31A1C", "#FDBF6F", "#FF7F00", "#1B9E77", "#D95F02",
+      "#7570B3", "#E7298A", "#66A61E", "#E6AB02", "#A6761D", "#666666",
+      sample(grDevices::colors(), 99)
     )
     col <- manycols[seq_len(nrow(b))]
     names(col) <- rownames(b)
@@ -960,17 +1490,18 @@ florets <- function(x, y, b, col = NULL, legendwindow = FALSE, rescale.by.sqrt =
   }
 
   # get radians:
-  # angles = seq(0, 2 * pi, length.out = nrow(b) + 1)[-1]
   angles <- seq(0, 2 * pi, length.out = nrow(b) + 1)
 
   # scale b based on the range of x and y:
   maxrange <- max(diff(range(x, na.rm = TRUE)), diff(range(y, na.rm = TRUE)))
   b <- b * maxrange / mean(b, na.rm = TRUE) * 0.007 * cex
 
-
   # draw plot:
   if (!add) {
-    graphics::plot(x, y, col = 0, bty = bty, xaxt = xaxt, yaxt = yaxt, xlab = xlab, ylab = ylab, ...)
+    graphics::plot(x, y,
+      col = 0, bty = bty, xaxt = xaxt, yaxt = yaxt,
+      xlab = xlab, ylab = ylab, ...
+    )
   }
 
   # draw florets:
@@ -980,7 +1511,10 @@ florets <- function(x, y, b, col = NULL, legendwindow = FALSE, rescale.by.sqrt =
         tempangles <- seq(angles[j], angles[j + 1], length.out = 20)
         xt <- b[j, i] * cos(tempangles)
         yt <- b[j, i] * sin(tempangles)
-        graphics::polygon(x[i] + c(0, xt), y[i] + c(0, yt), col = col[j, i], border = border, lwd = 0.5)
+        graphics::polygon(x[i] + c(0, xt), y[i] + c(0, yt),
+          col = col[j, i],
+          border = border, lwd = 0.5
+        )
       }
     }
   }
@@ -992,34 +1526,62 @@ florets <- function(x, y, b, col = NULL, legendwindow = FALSE, rescale.by.sqrt =
         tempangles <- seq(angles[j], angles[j + 1], length.out = 20)
         xt <- b[j, i] * cos(tempangles)
         yt <- b[j, i] * sin(tempangles)
-        graphics::polygon(x[i] + xt, y[i] + yt, col = col[j], border = border, lwd = 0.5)
+        graphics::polygon(x[i] + xt, y[i] + yt,
+          col = col[j],
+          border = border, lwd = 0.5
+        )
       }
     }
   }
 
   # draw a legend:
   if (legendwindow) {
-    graphics::plot(0, 0, col = 0, xlim = c(-1, 1), ylim = c(-1, 1), xaxt = "n", yaxt = "n", xlab = "", ylab = "", ...)
+    graphics::plot(0, 0,
+      col = 0, xlim = c(-1, 1), ylim = c(-1, 1), xaxt = "n",
+      yaxt = "n", xlab = "", ylab = "", ...
+    )
     for (j in seq_len(length(angles))) {
-      graphics::lines(c(0, 0.75 * cos(angles[j])), c(0, 0.75 * sin(angles[j])), col = col[j], lwd = 2)
-      graphics::text(0.85 * cos(angles[j]), 0.85 * sin(angles[j]), rownames(b)[j], cex = 1.4)
+      graphics::lines(c(0, 0.75 * cos(angles[j])), c(0, 0.75 * sin(angles[j])),
+        col = col[j], lwd = 2
+      )
+      graphics::text(0.85 * cos(angles[j]), 0.85 * sin(angles[j]),
+        rownames(b)[j],
+        cex = 1.4
+      )
     }
   }
 }
 
+# SpatialDecon: mixed cell deconvolution for spatial and/or bulk gene expression
+# data
+#    This program is free software: you can redistribute it and/or modify it
+#    under the terms of the GNU General Public License as published by the Free
+#    Software Foundation, either version 3 of the License, or (at your option)
+#    any later version.
+#    This program is distributed in the hope that it will be useful, but WITHOUT
+#    ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+#    FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+#    more details.
+#    You should have received a copy of the GNU General Public License along
+#    with this program.  If not, see https://www.gnu.org/licenses/.
+# Contact us:
+# NanoString Technologies, Inc.
 
 
 
-
-#' Estimate a tumor-specific profile and merge it with the pre-specified cell profile matrix (X)
+#' Estimate a tumor-specific profile and merge it with the pre-specified cell
+#'  profile matrix (X)
 #'
-#' Given the input of "tumor-only" AOI's, estimates an collection of tumor-specific
-#' expression profiles and merges them with the immune cell expression training matrix.
+#' Given the input of "tumor-only" AOI's, estimates an collection of
+#'  tumor-specific
+#' expression profiles and merges them with the immune cell expression
+#' training matrix.
 #' The process:
 #' \enumerate{
 #' \item log2/normalized data from tumor-only AOIs is clustered with hclust,
 #' and cutree() is used to define clusters.
-#' \item 2. Each cluster's geomean profile is merged into the immune cell profile matrix.
+#' \item 2. Each cluster's geomean profile is merged into the immune cell
+#' profile matrix.
 #' }
 #'
 #' @param norm matrix of normalized data
@@ -1046,85 +1608,110 @@ florets <- function(x, y, b, col = NULL, legendwindow = FALSE, rescale.by.sqrt =
 #' @export
 mergeTumorIntoX <- function(norm, bg, pure_tumor_ids, X, K = 10) {
 
-  # round up 0 values in norm:
-  min.nonzero <- min(norm[norm > 0], na.rm = TRUE)
-  norm <- pmax(norm, min.nonzero)
+    # round up 0 values in norm:
+    min.nonzero <- min(norm[norm > 0], na.rm = TRUE)
+    norm <- pmax(norm, min.nonzero)
 
-  # subset data to only the pure tumor IDs:
-  norm <- norm[, pure_tumor_ids, drop = FALSE]
-  bg <- bg[, pure_tumor_ids, drop = FALSE]
+    # subset data to only the pure tumor IDs:
+    norm <- norm[, pure_tumor_ids, drop = FALSE]
+    bg <- bg[, pure_tumor_ids, drop = FALSE]
 
-  # bg-subtract:
-  norm <- pmax(norm - bg, min(norm) / 20)
+    # bg-subtract:
+    norm <- pmax(norm - bg, min(norm) / 20)
 
-  # fix K if too big:
-  if (ncol(norm) < K) {
-    K <- ncol(norm)
-  }
-
-  # case 1: want to use every column in norm as a separate profile:
-  #  (includes case of just one column in norm)
-  if (K == ncol(norm)) {
-    tumorX <- norm
-  }
-
-  # case 2: if many tumor AOIs, get profiles for K clusters of data:
-  if (K < ncol(norm)) {
-    # cluster and cut:
-    h <- stats::hclust(stats::dist(t(log2(norm))))
-    cut <- stats::cutree(h, k = K)
-    # get clusters' geomean profiles:
-    tumorX <- c()
-    for (cid in unique(cut)) {
-      tumorX <- cbind(tumorX, exp(rowMeans(log(norm[, cut == cid, drop = FALSE]))))
+    # fix K if too big:
+    if (ncol(norm) < K) {
+        K <- ncol(norm)
     }
-    colnames(tumorX) <- paste0("tumor.", seq_len(ncol(tumorX)))
-  }
 
-  # align tumorX with X:
-  sharedgenes <- intersect(rownames(tumorX), rownames(X))
-  tumorX <- tumorX[sharedgenes, ]
-  X <- X[sharedgenes, ]
+    # case 1: want to use every column in norm as a separate profile:
+    #  (includes case of just one column in norm)
+    if (K == ncol(norm)) {
+        tumorX <- norm
+    }
 
-  # rescale tumor X:
-  meanq90 <- max(mean(apply(X, 2, stats::quantile, 0.9)), 1e-3)
-  tumorq90s <- apply(tumorX, 2, stats::quantile, 0.9)
-  tumorX <- sweep(tumorX, 2, tumorq90s, "/") * meanq90
+    # case 2: if many tumor AOIs, get profiles for K clusters of data:
+    if (K < ncol(norm)) {
+        # cluster and cut:
+        h <- stats::hclust(stats::dist(t(log2(norm))))
+        cut <- stats::cutree(h, k = K)
+        # get clusters' geomean profiles:
+        tumorX <- c()
+        for (cid in unique(cut)) {
+            tumorX <- cbind(
+                tumorX,
+                exp(rowMeans(log(norm[, cut == cid, drop = FALSE])))
+            )
+        }
+        colnames(tumorX) <- paste0("tumor.", seq_len(ncol(tumorX)))
+    }
 
-  # merge:
-  out <- cbind(X, tumorX)
-  return(out)
+    # align tumorX with X:
+    sharedgenes <- intersect(rownames(tumorX), rownames(X))
+    tumorX <- tumorX[sharedgenes, ]
+    X <- X[sharedgenes, ]
+
+    # rescale tumor X:
+    meanq90 <- max(mean(apply(X, 2, stats::quantile, 0.9)), 1e-3)
+    tumorq90s <- apply(tumorX, 2, stats::quantile, 0.9)
+    tumorX <- sweep(tumorX, 2, tumorq90s, "/") * meanq90
+
+    # merge:
+    out <- cbind(X, tumorX)
+    return(out)
 }
 
-
+# SpatialDecon: mixed cell deconvolution for spatial and/or bulk gene expression
+# data
+#    This program is free software: you can redistribute it and/or modify it
+#    under the terms of the GNU General Public License as published by the Free
+#    Software Foundation, either version 3 of the License, or (at your option)
+#    any later version.
+#    This program is distributed in the hope that it will be useful, but WITHOUT
+#    ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+#    FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+#    more details.
+#    You should have received a copy of the GNU General Public License along
+#    with this program.  If not, see https://www.gnu.org/licenses/.
+# Contact us:
+# NanoString Technologies, Inc.
 
 
 
 #' SpatialDecon: A package for computating the notorious bar statistic.
 #'
-#' The SpatialDecon package estimates mixed cell type abundance in the regions of spatially-resolved gene
-#' expression studies, using the method of Danaher & Kim (2020), "Advances in mixed cell deconvolution enable
+#' The SpatialDecon package estimates mixed cell type abundance in the regions
+#' of spatially-resolved gene
+#' expression studies, using the method of Danaher & Kim (2020), "Advances in
+#'  mixed cell deconvolution enable
 #' quantification of cell types in spatially-resolved gene expression data."
 #' It is also appropriate to apply to bulk gene expression data.
 #'
 #' @section functions:
 #' Functions to help set up deconvolution:
 #' \itemize{
-#'  \item derive_GeoMx_background Estimates the background levels from GeoMx experiments
-#'  \item collapseCellTypes reformats deconvolution results to merge closely-related cell types
+#'  \item derive_GeoMx_background Estimates the background levels from GeoMx
+#'  experiments
+#'  \item collapseCellTypes reformats deconvolution results to merge
+#'  closely-related cell types
 #'  \item download_profile_matrix Downloads a cell profile matrix.
-#'  \item safeTME: a data object, a matrix of immune cell profiles for use in tumor-immune deconvolution.
+#'  \item safeTME: a data object, a matrix of immune cell profiles for use in
+#'   tumor-immune deconvolution.
 #' }
 #' Deconvolution functions:
 #' \itemize{
 #'  \item spatialdecon runs the core deconvolution function
-#'  \item reverseDecon runs a transposed/reverse deconvolution problem, fitting the data as a function of cell abundance estimates.
-#'   Used to measure genes' dependency on cell mixing and to calculate gene residuals from cell mixing.
+#'  \item reverseDecon runs a transposed/reverse deconvolution problem, fitting
+#'  the data as a function of cell abundance estimates.
+#'   Used to measure genes' dependency on cell mixing and to calculate gene
+#'    residuals from cell mixing.
 #' }
 #' Plotting functions:
 #' \itemize{
-#'  \item florets Plot cell abundance on a specified x-y space, with each point a cockscomb plot showing the cell abundances of that region/sample.
-#'  \item TIL_barplot Plot abundances of tumor infiltrating lymphocytes (TILs) estimated from the safeTME cell profile matrix
+#'  \item florets Plot cell abundance on a specified x-y space, with each point
+#'   a cockscomb plot showing the cell abundances of that region/sample.
+#'  \item TIL_barplot Plot abundances of tumor infiltrating lymphocytes (TILs)
+#'   estimated from the safeTME cell profile matrix
 #' }
 #' @examples
 #' data(mini_geomx_dataset)
@@ -1153,28 +1740,52 @@ mergeTumorIntoX <- function(norm, bg, pure_tumor_ids, X, K = 10) {
 #' @name SpatialDecon-package
 NULL
 
+# SpatialDecon: mixed cell deconvolution for spatial and/or bulk gene expression
+# data
+#    This program is free software: you can redistribute it and/or modify it
+#    under the terms of the GNU General Public License as published by the Free
+#    Software Foundation, either version 3 of the License, or (at your option)
+#    any later version.
+#    This program is distributed in the hope that it will be useful, but WITHOUT
+#    ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+#    FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+#    more details.
+#    You should have received a copy of the GNU General Public License along
+#    with this program.  If not, see https://www.gnu.org/licenses/.
+# Contact us:
+# NanoString Technologies, Inc.
 
 
 #' Reverse deconvolution
 #'
-#' Performs "reverse deconvolution", modelling each gene expression's ~ cell scores.
-#' Returns a matrix of "fitted" expression values, a matrix of residuals, a matrix of
+#' Performs "reverse deconvolution", modelling each gene expression's ~
+#' cell scores.
+#' Returns a matrix of "fitted" expression values, a matrix of residuals,
+#'  a matrix of
 #' reverse decon coefficients for genes * cells.
 #'
-#' @param norm Matrix of normalized data, with genes in rows and observations in columns
-#' @param beta Matrix of cell abundance estimates, with cells in rows and observations in columns.
+#' @param norm Matrix of normalized data, with genes in rows and observations
+#' in columns
+#' @param beta Matrix of cell abundance estimates, with cells in rows and
+#' observations in columns.
 #'  Columns are aligned to "norm".
-#' @param epsilon All y and yhat values are thresholded up to this point when performing decon.
+#' @param epsilon All y and yhat values are thresholded up to this point when
+#' performing decon.
 #'  Essentially says, "ignore variability in counts below this threshold."
 #' @return A list:
 #' \itemize{
-#' \item coefs, a matrix of coefficients for genes * cells, where element i,j is interpreted as
-#' "every unit increase in cell score j is expected to increase expression of gene i by _".
+#' \item coefs, a matrix of coefficients for genes * cells, where element i,j is
+#'  interpreted as
+#' "every unit increase in cell score j is expected to increase expression of
+#' gene i by _".
 #' \item yhat, a matrix of fitted values, in the same dimension as norm
-#' \item resids, a matrix of log2-scale residuals from the reverse decon fit, in the same
+#' \item resids, a matrix of log2-scale residuals from the reverse decon fit,
+#'  in the same
 #'  dimension as norm
-#' \item cors, a vector giving each gene's correlation between fitted and observed expression
-#' \item resid.sd, a vector of each gene's residual SD, a metric of how much variability genes
+#' \item cors, a vector giving each gene's correlation between fitted and
+#' observed expression
+#' \item resid.sd, a vector of each gene's residual SD, a metric of how much
+#' variability genes
 #'  have independend of cell mixing.
 #' }
 #' @import logNormReg
@@ -1200,128 +1811,171 @@ NULL
 #' @export
 reverseDecon <- function(norm, beta, epsilon = NULL) {
 
-  # remove cell types with no SD:
-  beta <- beta[apply(beta, 1, stats::sd) > 0, ]
-  # remove cell types that get removed by lm() (presumably removed due to linear dependence)
-  lm1 <- stats::lm(norm[1, ] ~ t(beta))
-  beta <- beta[!is.na(lm1$coef[setdiff(names(lm1$coef), "(Intercept)")]), , drop = F]
+    # remove cell types with no SD:
+    beta <- beta[apply(beta, 1, stats::sd) > 0, ]
+    # remove cell types that get removed by lm()
+    # (presumably removed due to linear dependence)
+    lm1 <- stats::lm(norm[1, ] ~ t(beta))
+    beta <- beta[!is.na(lm1$coef[setdiff(names(lm1$coef), "(Intercept)")]), ,
+        drop = FALSE
+    ]
 
-  # run reverse decon for all genes:
-  rd <- function(y) {
-    fit <- suppressWarnings(
-      logNormReg::lognlm(y ~ t(beta),
-        lik = FALSE,
-        method = "L-BFGS-B",
-        lower = rep(0, ncol(beta) + 1),
-        upper = rep(Inf, ncol(beta) + 1),
-        opt = "optim",
-        control = list(maxit = 1000)
-      )
+    # run reverse decon for all genes:
+    rd <- function(y) {
+        fit <- suppressWarnings(
+            logNormReg::lognlm(y ~ t(beta),
+                lik = FALSE,
+                method = "L-BFGS-B",
+                lower = rep(0, ncol(beta) + 1),
+                upper = rep(Inf, ncol(beta) + 1),
+                opt = "optim",
+                control = list(maxit = 1000)
+            )
+        )
+        return(fit$coefficients)
+    }
+    coefs <- t(apply(norm, 1, rd))
+    colnames(coefs)[-1] <- rownames(beta)
+
+    # get yhat
+    yhat <- norm * NA
+    for (ind in seq_len(ncol(yhat))) {
+        yhat[, ind] <- coefs %*% c(1, beta[, ind])
+    }
+
+    # auto-select a reasonable epsilon if not provided
+    if (length(epsilon) == 0) {
+        epsilon <- stats::quantile(norm[norm > 0], 0.01)
+    }
+
+    # get resids:
+    resids <- log2(pmax(norm, epsilon)) - log2(pmax(yhat, epsilon))
+
+    # get summary stats:
+    cors <- suppressWarnings(diag(stats::cor(t(norm), t(yhat))))
+    resid.sd <- apply(resids, 1, stats::sd)
+
+    out <- list(
+        coefs = coefs, yhat = yhat, resids = resids, cors = cors,
+        resid.sd = resid.sd
     )
-    return(fit$coefficients)
-  }
-  coefs <- t(apply(norm, 1, rd))
-  colnames(coefs)[-1] <- rownames(beta)
-
-  # get yhat
-  yhat <- norm * NA
-  for (ind in seq_len(ncol(yhat))) {
-    yhat[, ind] <- coefs %*% c(1, beta[, ind])
-  }
-
-  # auto-select a reasonable epsilon if not provided
-  if (length(epsilon) == 0) {
-    epsilon <- stats::quantile(norm[norm > 0], 0.01)
-  }
-
-  # get resids:
-  resids <- log2(pmax(norm, epsilon)) - log2(pmax(yhat, epsilon))
-
-  # get summary stats:
-  cors <- suppressWarnings(diag(stats::cor(t(norm), t(yhat))))
-  resid.sd <- apply(resids, 1, stats::sd)
-
-  out <- list(coefs = coefs, yhat = yhat, resids = resids, cors = cors, resid.sd = resid.sd)
-  return(out)
+    return(out)
 }
 
+# SpatialDecon: mixed cell deconvolution for spatial and/or bulk gene expression
+# data
+#    This program is free software: you can redistribute it and/or modify it
+#    under the terms of the GNU General Public License as published by the Free
+#    Software Foundation, either version 3 of the License, or (at your option)
+#    any later version.
+#    This program is distributed in the hope that it will be useful, but WITHOUT
+#    ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+#    FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+#    more details.
+#    You should have received a copy of the GNU General Public License along
+#    with this program.  If not, see https://www.gnu.org/licenses/.
+# Contact us:
+# NanoString Technologies, Inc.
 
 
 
 
 #' Apply error model to estimate technical SD from raw counts
 #'
-#' Based on raw counts, uses past data to estimate each raw count's log-scale SD from technical noise.
-#' Sppecifies different error models for different platforms.
+#' Based on raw counts, uses past data to estimate each raw count's log-scale
+#' SD from technical noise.
+#' Specifies different error models for different platforms.
 #'
 #' @param counts vector or matrix of raw counts
-#' @param platform String specifying which platform was used to create "rawCounts". Default to "dsp".
+#' @param platform String specifying which platform was used to create
+#' "rawCounts". Default to "dsp".
 #'  Other options include "ncounter", "rsem" and "quantile".
 #' @return a matrix of log2-scale SDs
 runErrorModel <- function(counts, platform = "general") {
-  if (platform == "ncounter") {
-    sds <- counts * 0 + 0.1
-    sds <- replace(sds, counts < 200, 0.2)
-    sds <- replace(sds, counts < 100, 0.3)
-    sds <- replace(sds, counts < 75, 0.4)
-    sds <- replace(sds, counts < 50, 0.5)
-    sds <- replace(sds, counts < 40, 0.7)
-    sds <- replace(sds, counts < 30, 1)
-    sds <- replace(sds, counts < 20, 3)
-  }
-
-
-  if (platform == "rsem") {
-    sds <- counts * 0 + 0.5930982
-    sds <- replace(sds, log2(counts) < 9.5, 0.6458475)
-    sds <- replace(sds, log2(counts) < 8.5, 0.7847597)
-    sds <- replace(sds, log2(counts) < 7.5, 1.0576471)
-    sds <- replace(sds, log2(counts) < 6.5, 1.2990917)
-    sds <- replace(sds, log2(counts) < 5.5, 1.5061735)
-    sds <- replace(sds, log2(counts) < 4.5, 1.6930872)
-    sds <- replace(sds, log2(counts) < 3.5, 1.7894239)
-  }
-
-  if (platform == "dsp") {
-    predictsd.dsp <- function(rawcounts) {
-      m <- log2(pmax(rawcounts, 1e-3))
-      meanvec <- c(-1e-6, 2, 2.5, 3, 3.5, 4, 4.5, 5, 5.5, 6, Inf)
-      sdvec <- c(1.5, 1.383, 1.191, 0.800, 0.48, 0.301, 0.301, 0.301, 0.263, 0.235, 0.235)
-
-      s <- replace(m, TRUE, sdvec[1])
-      for (i in seq_len(length(meanvec) - 1)) {
-        s <- replace(s, m >= meanvec[i], sdvec[i + 1])
-      }
-      return(s)
+    if (platform == "ncounter") {
+        sds <- counts * 0 + 0.1
+        sds <- replace(sds, counts < 200, 0.2)
+        sds <- replace(sds, counts < 100, 0.3)
+        sds <- replace(sds, counts < 75, 0.4)
+        sds <- replace(sds, counts < 50, 0.5)
+        sds <- replace(sds, counts < 40, 0.7)
+        sds <- replace(sds, counts < 30, 1)
+        sds <- replace(sds, counts < 20, 3)
     }
 
-    if (is.vector(counts)) {
-      sds <- sapply(counts, predictsd.dsp)
-    }
-    if (is.matrix(counts)) {
-      sds <- predictsd.dsp(counts)
-    }
-  }
 
-
-  if (platform == "quantile") {
-    if (is.vector(counts)) {
-      quantile <- rank(counts) / length(counts)
-    }
-    if (is.matrix(counts)) {
-      quantile <- matrix(rank(counts), nrow(counts)) / length(counts)
+    if (platform == "rsem") {
+        sds <- counts * 0 + 0.5930982
+        sds <- replace(sds, log2(counts) < 9.5, 0.6458475)
+        sds <- replace(sds, log2(counts) < 8.5, 0.7847597)
+        sds <- replace(sds, log2(counts) < 7.5, 1.0576471)
+        sds <- replace(sds, log2(counts) < 6.5, 1.2990917)
+        sds <- replace(sds, log2(counts) < 5.5, 1.5061735)
+        sds <- replace(sds, log2(counts) < 4.5, 1.6930872)
+        sds <- replace(sds, log2(counts) < 3.5, 1.7894239)
     }
 
-    sds <- quantile * 0 + 0.1
-    sds <- replace(sds, quantile < 0.2, 0.2)
-    sds <- replace(sds, quantile < 0.15, 0.3)
-    sds <- replace(sds, quantile < 0.1, 0.4)
-    sds <- replace(sds, quantile < 0.05, 0.5)
-    sds <- replace(sds, quantile < 0.01, 1)
-  }
-  return(sds)
+    if (platform == "dsp") {
+        predictsd.dsp <- function(rawcounts) {
+            m <- log2(pmax(rawcounts, 1e-3))
+            meanvec <- c(-1e-6, 2, 2.5, 3, 3.5, 4, 4.5, 5, 5.5, 6, Inf)
+            sdvec <- c(
+                1.5, 1.383, 1.191, 0.800, 0.48, 0.301, 0.301,
+                0.301, 0.263, 0.235, 0.235
+            )
+
+            s <- replace(m, TRUE, sdvec[1])
+            for (i in seq_len(length(meanvec) - 1)) {
+                s <- replace(s, m >= meanvec[i], sdvec[i + 1])
+            }
+            return(s)
+        }
+
+        if (is.vector(counts)) {
+            sds <- vapply(
+                X = counts,
+                FUN = predictsd.dsp,
+                FUN.VALUE = numeric(length(counts))
+            )
+        }
+        if (is.matrix(counts)) {
+            sds <- predictsd.dsp(counts)
+        }
+    }
+
+
+    if (platform == "quantile") {
+        if (is.vector(counts)) {
+            quantile <- rank(counts) / length(counts)
+        }
+        if (is.matrix(counts)) {
+            quantile <- matrix(rank(counts), nrow(counts)) / length(counts)
+        }
+
+        sds <- quantile * 0 + 0.1
+        sds <- replace(sds, quantile < 0.2, 0.2)
+        sds <- replace(sds, quantile < 0.15, 0.3)
+        sds <- replace(sds, quantile < 0.1, 0.4)
+        sds <- replace(sds, quantile < 0.05, 0.5)
+        sds <- replace(sds, quantile < 0.01, 1)
+    }
+    return(sds)
 }
 
+# SpatialDecon: mixed cell deconvolution for spatial and/or bulk gene expression
+# data
+#    This program is free software: you can redistribute it and/or modify it
+#    under the terms of the GNU General Public License as published by the Free
+#    Software Foundation, either version 3 of the License, or (at your option)
+#    any later version.
+#    This program is distributed in the hope that it will be useful, but WITHOUT
+#    ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+#    FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+#    more details.
+#    You should have received a copy of the GNU General Public License along
+#    with this program.  If not, see https://www.gnu.org/licenses/.
+# Contact us:
+# NanoString Technologies, Inc.
 
 
 
@@ -1337,45 +1991,67 @@ runErrorModel <- function(counts, platform = "general") {
 #' \item re-run decon with cleaned-up gene set
 #' \item combine closely-related cell types
 #' \item compute p-values
-#' \item rescale abundance estimates, to proportions of total, proportions of immune, cell counts
+#' \item rescale abundance estimates, to proportions of total, proportions of
+#'  immune, cell counts
 #' }
 #'
-#' @param norm p-length expression vector or p * N expression matrix - the actual (linear-scale) data
+#' @param norm p-length expression vector or p * N expression matrix - the
+#' actual (linear-scale) data
 #' @param bg Same dimension as norm: the background expected at each data point.
 #' @param X Cell profile matrix. If NULL, the safeTME matrix is used.
 #' @param raw Optional for using an error model to weight the data points.
-#'  p-length expression vector or p * N expression matrix - the raw (linear-scale) data
+#'  p-length expression vector or p * N expression matrix - the raw
+#'  (linear-scale) data
 #' @param wts Optional, a matrix of weights.
-#' @param resid_thresh A scalar, sets a threshold on how extreme individual data points' values
+#' @param resid_thresh A scalar, sets a threshold on how extreme individual data
+#'  points' values
 #'  can be (in log2 units) before getting flagged as outliers and set to NA.
-#' @param lower_thresh A scalar. Before log2-scale residuals are calculated, both observed and fitted
-#'  values get thresholded up to this value. Prevents log2-scale residuals from becoming extreme in
+#' @param lower_thresh A scalar. Before log2-scale residuals are calculated,
+#'  both observed and fitted
+#'  values get thresholded up to this value. Prevents log2-scale residuals from
+#'  becoming extreme in
 #'  points near zero.
-#' @param align_genes Logical. If TRUE, then Y, X, bg, and wts are row-aligned by shared genes.
-#' @param is_pure_tumor A logical vector denoting whether each AOI consists of pure tumor. If specified,
-#'  then the algorithm will derive a tumor expression profile and merge it with the immune profiles matrix.
-#' @param cell_counts Number of cells estimated to be within each sample. If provided alongside norm_factors,
-#'  then the algorithm will additionally output cell abundance esimtates on the scale of cell counts.
-#' @param cellmerges A list object holding the mapping from beta's cell names to combined cell names. If left
-#'  NULL, then defaults to a mapping of granular immune cell definitions to broader categories.
-#' @param n_tumor_clusters Number of tumor-specific columns to merge into the cell profile matrix.
-#'  Has an impact only when is_pure_tumor argument is used to indicate pure tumor AOIs.
-#'  Takes this many clusters from the pure-tumor AOI data and gets the average expression profile in each cluster.  Default 10.
+#' @param align_genes Logical. If TRUE, then Y, X, bg, and wts are row-aligned
+#'  by shared genes.
+#' @param is_pure_tumor A logical vector denoting whether each AOI consists of
+#'  pure tumor. If specified,
+#'  then the algorithm will derive a tumor expression profile and merge it with
+#'  the immune profiles matrix.
+#' @param cell_counts Number of cells estimated to be within each sample. If
+#' provided alongside norm_factors,
+#'  then the algorithm will additionally output cell abundance esimtates on the
+#'  scale of cell counts.
+#' @param cellmerges A list object holding the mapping from beta's cell names to
+#'  combined cell names. If left
+#'  NULL, then defaults to a mapping of granular immune cell definitions to
+#'   broader categories.
+#' @param n_tumor_clusters Number of tumor-specific columns to merge into the
+#' cell profile matrix.
+#'  Has an impact only when is_pure_tumor argument is used to indicate pure
+#'   tumor AOIs.
+#'  Takes this many clusters from the pure-tumor AOI data and gets the average
+#'  expression profile in each cluster.  Default 10.
 #' @param maxit Maximum number of iterations. Default 1000.
 #' @return a list:
 #' \itemize{
-#' \item beta: matrix of cell abundance estimates, cells in rows and observations in columns
+#' \item beta: matrix of cell abundance estimates, cells in rows and
+#' observations in columns
 #' \item sigmas: covariance matrices of each observation's beta estimates
 #' \item p: matrix of p-values for H0: beta == 0
 #' \item t: matrix of t-statistics for H0: beta == 0
 #' \item se: matrix of standard errors of beta values
 #' \item prop_of_all: rescaling of beta to sum to 1 in each observation
-#' \item prop_of_nontumor: rescaling of beta to sum to 1 in each observation, excluding tumor abundance estimates
-#' \item cell.counts: beta rescaled to estimate cell numbers, based on prop_of_all and nuclei count
-#' \item beta.granular: cell abundances prior to combining closely-related cell types
+#' \item prop_of_nontumor: rescaling of beta to sum to 1 in each observation,
+#' excluding tumor abundance estimates
+#' \item cell.counts: beta rescaled to estimate cell numbers, based on
+#' prop_of_all and nuclei count
+#' \item beta.granular: cell abundances prior to combining closely-related
+#' cell types
 #' \item sigma.granular: sigmas prior to combining closely-related cell types
-#' \item cell.counts.granular: cell.counts prior to combining closely-related cell types
-#' \item resids: a matrix of residuals from the model fit. (log2(pmax(y, lower_thresh)) - log2(pmax(xb, lower_thresh))).
+#' \item cell.counts.granular: cell.counts prior to combining closely-related
+#' cell types
+#' \item resids: a matrix of residuals from the model fit.
+#'  (log2(pmax(y, lower_thresh)) - log2(pmax(xb, lower_thresh))).
 #' \item X: the cell profile matrix used in the decon fit.
 #' }
 #' @examples
@@ -1432,7 +2108,9 @@ spatialdecon <- function(norm, bg, X = NULL,
 
 
   if (length(bg) == 1) {
-    bg <- matrix(bg, nrow(norm), ncol(norm), dimnames = list(rownames(norm), colnames(norm)))
+    bg <- matrix(bg, nrow(norm), ncol(norm),
+      dimnames = list(rownames(norm), colnames(norm))
+    )
   }
 
   # prep training matrix:
@@ -1444,23 +2122,29 @@ spatialdecon <- function(norm, bg, X = NULL,
     stop("no shared gene names between norm and X")
   }
   if (length(sharedgenes) < 100) {
-    stop(paste0("Only ", length(sharedgenes), " genes are shared between norm and X - this may not be enough to support accurate deconvolution."))
+    stop(paste0(
+      "Only ", length(sharedgenes),
+      " genes are shared between norm and X - this may not be enough
+                to support accurate deconvolution."
+    ))
   }
 
   # calculate weights based on expected SD of counts
   # wts = replace(norm, TRUE, 1)
   if (length(raw) > 0) {
-    weight.by.TIL.resid.sd <- length(intersect(colnames(X), colnames(safeTME))) > 10
+    weight.by.TIL.resid.sd <-
+      length(intersect(colnames(X), colnames(safeTME))) > 10
     wts <- deriveWeights(norm,
       raw = raw, error.model = "dsp",
       weight.by.TIL.resid.sd = weight.by.TIL.resid.sd
     )
   }
 
-  #### if pure tumor AOIs are specificed, get tumor expression profile -------------------------------------
+  #### if pure tumor AOIs are specificed, get tumor expression profile --------
   if (sum(is_pure_tumor) > 0) {
 
-    # derive tumor profiles and merge into X: (derive a separate profile for each tissue)
+    # derive tumor profiles and merge into X:
+    # (derive a separate profile for each tissue)
     X <- mergeTumorIntoX(
       norm = norm,
       bg = bg,
@@ -1486,10 +2170,6 @@ spatialdecon <- function(norm, bg, X = NULL,
   #### combine closely-related cell types ------------------------------------
 
   if (length(cellmerges) > 0) {
-
-    # if (is.element("tumor", rownames(res$beta))) {
-    #  cellmerges$tumor = rownames(res$beta)[grepl("tumor", rownames(res$beta))]
-    # }
     tempconv <- convertCellTypes(
       beta = res$beta,
       matching = cellmerges,
@@ -1525,7 +2205,10 @@ spatialdecon <- function(norm, bg, X = NULL,
   # proportions:
   res$prop_of_all <- sweep(res$beta, 2, colSums(res$beta), "/")
   nontumorcellnames <- rownames(res$beta)[!grepl("tumor", rownames(res$beta))]
-  res$prop_of_nontumor <- sweep(res$beta[nontumorcellnames, ], 2, colSums(res$beta[nontumorcellnames, ]), "/")
+  res$prop_of_nontumor <- sweep(
+    res$beta[nontumorcellnames, ], 2,
+    colSums(res$beta[nontumorcellnames, ]), "/"
+  )
 
   # on scale of cell counts:
   if (length(cell_counts) > 0) {
@@ -1548,21 +2231,38 @@ spatialdecon <- function(norm, bg, X = NULL,
   return(res)
 }
 
-
-
+# SpatialDecon: mixed cell deconvolution for spatial and/or bulk gene expression
+# data
+#    This program is free software: you can redistribute it and/or modify it
+#    under the terms of the GNU General Public License as published by the Free
+#    Software Foundation, either version 3 of the License, or (at your option)
+#    any later version.
+#    This program is distributed in the hope that it will be useful, but WITHOUT
+#    ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+#    FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+#    more details.
+#    You should have received a copy of the GNU General Public License along
+#    with this program.  If not, see https://www.gnu.org/licenses/.
+# Contact us:
+# NanoString Technologies, Inc.
 
 
 #' Barplot of abundance estimates
 #'
 #' Draw barplot of the "betas" from a decon fit
 #'
-#' @param mat Matrix of cell proportions or abundances, in the same dimensions output by spatialdecon
-#'  (cells in rows, observations in columns). User is free to re-order columns/observations in
+#' @param mat Matrix of cell proportions or abundances, in the same dimensions
+#' output by spatialdecon
+#'  (cells in rows, observations in columns). User is free to re-order
+#'  columns/observations in
 #'  whatever order is best for display.
-#' @param draw_legend Logical. If TRUE, the function draws a legend in a new plot frame.
+#' @param draw_legend Logical. If TRUE, the function draws a legend in a new
+#' plot frame.
 #' @param main Title for barplot
-#' @param col Vector of colors for cell types. Defaults to pre-set colors for the safeTME cell types.
+#' @param col Vector of colors for cell types. Defaults to pre-set colors for
+#' the safeTME cell types.
 #' @param ... Arguments passed to barplot()
+#' @return Draws a barplot.
 #' @examples
 #' data(mini_geomx_dataset)
 #' # estimate background:
@@ -1593,10 +2293,11 @@ TIL_barplot <- function(mat, draw_legend = FALSE, main = "", col = NULL, ...) {
     }
     else {
       manycols <- c(
-        "#8DD3C7", "#FFFFB3", "#BEBADA", "#FB8072", "#80B1D3", "#FDB462", "#B3DE69",
-        "#FCCDE5", "#A6CEE3", "#1F78B4", "#B2DF8A", "#33A02C", "#FB9A99", "#E31A1C",
-        "#FDBF6F", "#FF7F00", "#1B9E77", "#D95F02", "#7570B3", "#E7298A", "#66A61E",
-        "#E6AB02", "#A6761D", "#666666", sample(grDevices::colors(), 99)
+        "#8DD3C7", "#FFFFB3", "#BEBADA", "#FB8072", "#80B1D3", "#FDB462",
+        "#B3DE69", "#FCCDE5", "#A6CEE3", "#1F78B4", "#B2DF8A", "#33A02C",
+        "#FB9A99", "#E31A1C", "#FDBF6F", "#FF7F00", "#1B9E77", "#D95F02",
+        "#7570B3", "#E7298A", "#66A61E", "#E6AB02", "#A6761D", "#666666",
+        sample(grDevices::colors(), 99)
       )
       col <- manycols[seq_len(nrow(mat))]
       names(col) <- rownames(mat)
@@ -1622,6 +2323,249 @@ TIL_barplot <- function(mat, draw_legend = FALSE, main = "", col = NULL, ...) {
       legend = rev(names(col))
     )
   }
+}
+
+#### functions for drawing points in space and polygons behind them
+
+# contents:
+# - spaceplot: a fn to draw expression values in space. Calls the below two functoins
+# - getBoundary: fn to infer a polygonal shape around a set of points
+# - makeTissueGrid: fn to arrange all the xy points from different tissues in a study in a non-overlapping way
+
+
+
+# dev note: what's needed here:
+# - 0 and tiny values get an empty pch = 1
+
+
+#' Plot a gene or score in space
+#'
+#' Wrapper function for other spatial plotting functions.
+#' Draws plots the x-y coords of tissues, with point size giving variable value.
+#' @param x X coords
+#' @param y Y coords
+#' @param z A non-negative vector of expression levels, pathway/cell scores, etc.
+#' @param tissue A vector of tissue IDs
+#' @param tissue.order Optional, vector of tissue names giving the order in which to plot them.
+#'  If NULL, then alphabetical order will be used
+#' @param tissuecols Named vector of colors to use for each tissue's polygon
+#' @param use Vector of logicals specifying which elements of the data to use
+#' @param rescale Logical for whether to rescale to give z a mean of 1.
+#' @param cex A scalar, controls point size. (Points are further scaled by the values of z.)
+#' @param boundaries Optional, a list of x,y vectors defining polygons, in format created by getBoundary()
+#' @param ... Arguments passed to plot()
+#' @return Draws a plot in xy space. Returns a list:
+#'  x: new x coords
+#'  y: new y coords,
+#'  outlines: list of polygonal tissue boundaries' x-y coords
+#' @example
+#' # sim data from 5 tissues:
+#' set.seed(0)
+#' x = rnorm(50)
+#' y = rnorm(50)
+#' z = runif(50)
+#' tissue = rep(letters[1:5], each = 10)
+#' spaceplot(x, y, z, tissue, tissuecols = NULL, use = TRUE, rescale = FALSE,
+#'           cex = 1, col = "#00008B80",
+#'           nrow = NULL, rowind = NULL, colind = NULL, expansion = 1.2)
+spaceplot <- function(x, y, z, tissue, tissue.order = NULL, tissuecols = NULL, tissuecols.alpha = 0.2, use = TRUE, rescale = FALSE,
+                      cex = 1, col = "#00008B80",
+                      nrow = NULL, rowind = NULL, colind = NULL, expansion = 1.2, ...) {
+
+  # subset everything:
+  if (length(col) == length(x)) {
+    col <- col[use]
+  }
+  x <- x[use]
+  y <- y[use]
+  z <- z[use]
+  tissue <- tissue[use]
+
+  # first, get new xy coords:
+  newxy.custom <- makeTissueGrid(
+    x = x, y = y,
+    tissue = tissue, tissue.order = tissue.order,
+    rowind = rowind, colind = colind,
+    nrow = NULL, expansion = expansion
+  )
+  x <- newxy.custom$x
+  y <- newxy.custom$y
+
+  # also get polygon tissue boundaries:
+  boundaries <- list()
+  xrange <- yrange <- c(NA, NA)
+  for (tiss in unique(tissue)) {
+    tempuse <- tissue == tiss
+    boundaries[[tiss]] <- getBoundary(x = x[tempuse], y = y[tempuse], marg = 0.4)
+    yrange[1] <- min(yrange, boundaries[[tiss]]$y, na.rm = T)
+    yrange[2] <- max(yrange, boundaries[[tiss]]$y, na.rm = T)
+    xrange[1] <- min(xrange, boundaries[[tiss]]$x, na.rm = T)
+    xrange[2] <- max(xrange, boundaries[[tiss]]$x, na.rm = T)
+  }
+
+  # transform z:
+  if (rescale) {
+    z <- z / max(z)
+  }
+
+  # plotting:
+  plot(x, y,
+    cex = z * cex,
+    col = col,
+    pch = 16,
+    xlab = "", ylab = "",
+    xaxt = "n", yaxt = "n",
+    ylim = yrange, xlim = xrange, ...
+  )
+
+  # tissue boundaries:
+  if (length(tissuecols) == 0) {
+    tissuecols <- rep("grey50", length(unique(tissue)))
+    names(tissuecols) <- unique(tissue)
+  }
+  for (tiss in names(boundaries)) {
+    polygon(
+      x = boundaries[[tiss]]$x,
+      y = boundaries[[tiss]]$y,
+      col = alpha(tissuecols[[tiss]], tissuecols.alpha), border = NA
+    )
+  }
+
+  # return coordinates:
+  out <- list(x = x, y = y, boundaries = boundaries)
+  return(out)
+}
+
+
+
+
+
+
+#' Function to define a polygon boundary around a set of points in xy space
+#'
+#' Fits a convex hull polygon around the points, leaving a bit of margin beyond the points
+#' @param x vector of x coords
+#' @param y vector of y coords
+#' @param marg Amount of extra margin to draw. Default 10%
+#' @return a list: x: coords of the polygon. y: y coords on the polygon
+#' @example
+#'  x = rnorm(30)
+#'  y = rnorm(30)
+#'  plot(x, y)
+#'  bound = getBoundary(x, y)
+#'  polygon(bound, col = rgb(0,0,1,0.5))
+getBoundary <- function(x, y, marg = 0.2) {
+  # get center of shape:
+  mx <- mean(x)
+  my <- mean(y)
+  # expand all points away from center
+  x2 <- mx + (x - mx) * (1 + marg)
+  y2 <- my + (y - my) * (1 + marg)
+
+  # get convex hull around expanded points:
+  ch <- chull(x2, y2)
+
+  out <- list(
+    x = x2[ch],
+    y = y2[ch]
+  )
+  return(out)
+}
+
+
+#' Define non-overlapping x-y coords for plotting multiple tissues in the same frame
+#'
+#' Given xy coords for segments from several tissues, shifts each tissue so they don't overlap
+#' @param x Vector of x coords
+#' @param y Vector of y coords
+#' @param tissue Vector of tissue IDs corresponding to x and y
+#' @param tissue.order Optional, vector of tissue names giving the order in which to plot them.
+#'  If NULL, then alphabetical order will be used
+#' @param rowind Optional, integer vector of row assignments for tissues, aligned to tissue.order.
+#'  Must be provided with colind to work.
+#' @param colind Optional, integer vector of column assignments for tissues, aligned to tissue.order
+#'  Must be provided with rowind to work.
+#' @param expansion A constant scaling factor, for how much to expand the margins between tissues
+#' @return A list: x = new x coords. y = new y coords.
+#' @examples
+#' # sim data from 5 tissues:
+#' set.seed(0)
+#' x <- rnorm(50)
+#' y <- rnorm(50)
+#' tissue <- rep(letters[1:5], each = 10)
+#'
+#' # arrange in default layout:
+#' newxy <- makeTissueGrid(
+#'   x = x, y = y, tissue = tissue,
+#'   tissue.order = NULL, rowind = NULL, colind = NULL,
+#'   nrow = NULL, expansion = 1.2
+#' )
+#' plot(newxy, pch = 16, col = 0)
+#' text(newxy$x, newxy$y, tissue, col = as.numeric(as.factor(tissue)))
+#'
+#' # specify a layout:
+#' newxy.custom <- makeTissueGrid(
+#'   x = x, y = y, tissue = tissue,
+#'   rowind = c(1, 1, 1, 2, 2), colind = c(1, 2, 3, 1, 3),
+#'   nrow = NULL, expansion = 1.2
+#' )
+#' plot(newxy.custom, pch = 16, col = 0)
+#' text(newxy.custom$x, newxy.custom$y, tissue, col = as.numeric(as.factor(tissue)))
+makeTissueGrid <- function(x, y, tissue,
+                           tissue.order = NULL, rowind = NULL, colind = NULL,
+                           nrow = NULL, expansion = 1.2) {
+
+  # define the tissue ids and their order:
+  if (length(tissue.order) > 0) {
+    tissues <- tissue.order
+  }
+  else {
+    tissues <- sort(unique(tissue))
+  }
+
+  # get tissue spans and centers:
+  xspans <- yspans <- xcenters <- ycenters <- c()
+  for (tiss in tissue) {
+    rx <- range(x[tissue == tiss])
+    ry <- range(y[tissue == tiss])
+    xspans[tiss] <- diff(rx)
+    yspans[tiss] <- diff(ry)
+    xcenters[tiss] <- median(rx)
+    ycenters[tiss] <- median(ry)
+  }
+
+  # define how far apart tissues should be in x and y space:
+  xmarg <- max(xspans) * expansion
+  ymarg <- max(yspans) * expansion
+
+  # if not specified, define a grid of tissue centers:
+  if ((length(rowind) == 0) | (length(colind) == 0)) {
+    # define number of rows and columns:
+    if (length(nrow) == 0) {
+      nrow <- round(sqrt(length(tissues)))
+    }
+    ncol <- ceiling(length(tissues) / nrow)
+
+    # assign rows and columns to each tissue:
+    rowind <- ceiling((1:length(tissues)) / ncol)
+    colind <- ceiling(((1:length(tissues))) %% ncol)
+    colind <- replace(colind, colind == 0, ncol)
+    # plot(rowind ~ colind);text(colind, rowind, tissues)
+  }
+  rowind <- max(rowind) - rowind + 1
+  names(rowind) <- names(colind) <- tissues
+
+  # now get xy offsets for each tissue
+  xnew <- ynew <- replace(x, TRUE, NA)
+  for (tiss in tissues) {
+    tempxoffset <- colind[tiss] * xmarg - xcenters[tiss]
+    tempyoffset <- rowind[tiss] * ymarg - ycenters[tiss]
+    xnew[tissue == tiss] <- x[tissue == tiss] + tempxoffset
+    ynew[tissue == tiss] <- y[tissue == tiss] + tempyoffset
+  }
+
+  out <- list(x = xnew, y = ynew)
+  return(out)
 }
 
 
