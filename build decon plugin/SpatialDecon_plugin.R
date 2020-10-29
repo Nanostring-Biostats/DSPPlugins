@@ -1,77 +1,69 @@
-# SpatialDecon: mixed cell deconvolution for spatial and/or bulk gene expression data
 # Copyright (C) 2020, NanoString Technologies, Inc.
 #    This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
 #    This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 #    You should have received a copy of the GNU General Public License along with this program.  If not, see https://www.gnu.org/licenses/.
-# Contact us:
-# NanoString Technologies, Inc.
-# 530 Fairview Avenue N
-# Seattle, WA 98109
-# Tel: (888) 358-6266
-# pdanaher@nanostring.com
+# Contact us: # NanoString Technologies, Inc. # 530 Fairview Avenue N # Seattle, WA 98109 # Tel: (888) 358-6266
 
 
 ##########################################################
 ####      Arguments to be modified by user            ####
 ##########################################################
 
-
-# Specify the filename of the cell profile matrix:
-# Instructions: specifying a new cell profile matrix:
-#   Use a .csv file with cell-type-specific expression profiles, with genes in
-#   rows and cell types in columns. Row names should be in HUGO gene names.
-# Instructions: downloading a pre-specified cell profile matrix:
-#   You can supply your own cell profile matrix, or you can download a pre-specified one from
-#   https://github.com/Nanostring-Biostats/Extensions/cell-profile-library
-# Instructions: uploading to DSPDA:
-#   Upload this csv file as you would a plugin .R file.
+# Cell profile matrix filename:
 cell_profile_filename <- "safeTME-for-tumor-immune.csv"
 
-# if you have segments selected to be pure tumor, free of immune and stroma,
-# then specify a column name giving the identities of those segments. The
-# code expects this column to have"tumor" entered for those segments, and other
-# values elsewhere.
+# annotation column giving pure tumor AOIs
+# (this column must have the value "tumor" for indicate tumor AOIs)
 pure_tumor_column_name <- "none"
-
-# enter the name of the column giving nuclei counts
-nuclei_count_column_name <- "AOINucleiCount"
-
-# define cell types to be added together in the final result:
-# example syntax:
-# merges = list()
-# merges[["T"]] = c("CD8.T", "CD4.T")
-# merges[["myeloid"]] = c("macrophage", "monocyte", "DC")
-merges <- list()
-
 
 # define variables to show in heatmaps:
 variables_to_plot <- c("ScanName", "SegmentName")
 
 
-# define coloring (optional):
-# for a list of R colors, see http://www.stat.columbia.edu/~tzheng/files/Rcolor.pdf
-# example syntax:
-# cols <- list(ScanName = c("5911 CTA" = "red",
-#                          "5917 CTA" = "blue",
-#                          "5922 CTA" = "darkblue",
-#                          "5929 CTA" = "forestgreen"),
-#            SegmentName = c("Tumor" = "chartreuse3",
-#                            "TME" = "dodgerblue3"))
-cols <- NULL
+# define coloring of annotations (optional):
+# 1: set the next line to TRUE:
+custom_annotation_coloring <- FALSE
+# and then modify the example syntax below:
+if (custom_annotation_coloring) {
+  # example syntax:
+  cols <- list(
+    ScanName = c(
+      "scan1" = "red",
+      "scan2" = "blue",
+      "scan3" = "darkblue",
+      "scan4" = "forestgreen"
+    ),
+    SegmentName = c(
+      "Tumor" = "chartreuse3",
+      "TME" = "dodgerblue3"
+    )
+  )
+  # for a list of R colors, see http://www.stat.columbia.edu/~tzheng/files/Rcolor.pdf
+}
 
-# define which variables specify xy coordinates:
-xpositionname <- "ROICoordinateX"
-ypositionname <- "ROICoordinateY"
-tissueidname <- "ScanName"
+# heatmap color scheme:
+hmcols <- c("white", "darkblue")
+# alternative heatmap colors:
+# remove the "#" to enable either of these lines:
+# viridis option B:
+# hmcols = c("#000004FF", "#1B0C42FF", "#4B0C6BFF", "#781C6DFF", "#A52C60FF", "#CF4446FF", "#ED6925FF", "#FB9A06FF", "#F7D03CFF", "#FCFFA4FF")
+# viridis option D:
+# hmcols = c("#440154FF", "#482878FF", "#3E4A89FF", "#31688EFF", "#26828EFF", "#1F9E89FF", "#35B779FF", "#6DCD59FF", "#B4DE2CFF", "#FDE725FF")
+
+
+
+
 
 ##########################################################
 #### end of arguments. DO NOT CHANGE CODE BELOW HERE  ####
 ##########################################################
 
+
 library(logNormReg)
 library(pheatmap)
 library(viridis)
 library(scales)
+library(openxlsx)
 
 main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
 
@@ -80,6 +72,14 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
 
   # access cell profile matrix file:
   X <- as.matrix(read.csv(cell_profile_filename, header = T, row.names = 1))
+
+
+  # ARGUMENT (hidden): define cell types to be added together in the final result:
+  # example syntax:
+  # merges = list()
+  # merges[["T"]] = c("CD8.T", "CD4.T")
+  # merges[["myeloid"]] = c("macrophage", "monocyte", "DC")
+  merges <- list()
 
   # parse merges:
   merges.full <- NULL
@@ -97,20 +97,24 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
     }
   }
 
+
+  # ARGUMENT (hidden): enter the name of the column giving nuclei counts
+  nuclei_count_column_name <- "this_is_hidden_for_advanced_users" # "AOINucleiCount"
+
   # parse nuclei column
   cell_counts <- NULL
   if (is.element(nuclei_count_column_name, colnames(segmentAnnotations))) {
     cell_counts <- as.numeric(segmentAnnotations[, nuclei_count_column_name])
   }
-  if (!is.element(nuclei_count_column_name, colnames(segmentAnnotations))) {
-    warning("The value entered for nuclei_count_column_name was not a column header in the segment annotations. 
-            Results will not be output on the scale of cell counts; just in abundance scores and proportions.")
-  }
+  # if (!is.element(nuclei_count_column_name, colnames(segmentAnnotations))) {
+  #  warning("The value entered for nuclei_count_column_name was not a column header in the segment annotations.
+  #          Results will not be output on the scale of cell counts; just in abundance scores and proportions.")
+  # }
 
   # parse pure tumor column
   is_pure_tumor <- NULL
   if (is.element(pure_tumor_column_name, colnames(segmentAnnotations))) {
-    is_pure_tumor <- segmentAnnotations[, pure_tumor_column_name] == "tumor"
+    is_pure_tumor <- tolower(segmentAnnotations[, pure_tumor_column_name]) == "tumor"
     is_pure_tumor <- replace(is_pure_tumor, is.na(is_pure_tumor), FALSE)
   }
   if (!is.element(pure_tumor_column_name, colnames(segmentAnnotations)) & (pure_tumor_column_name != "none")) {
@@ -151,17 +155,56 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
 
 
   #### write results files: ---------------------------------------------
-  write.csv(res$beta, file = file.path(outputFolder, "cell_abundance_scores.csv", fsep = .Platform$file.sep))
-  # write.csv(res$p, file = file.path(outputFolder, "cell_pvalues.csv", fsep = .Platform$file.sep))
+
+  # initialize a workbook to write to excel:
+  wb <- createWorkbook("decon")
+  # write beta:
+  addWorksheet(wb, "Abundance scores")
+  writeData(wb,
+    sheet = "Abundance scores",
+    res$beta,
+    colNames = TRUE, rowNames = TRUE
+  )
+  # write props:
+  addWorksheet(wb, "Proportions")
+  writeData(wb,
+    sheet = "Proportions",
+    res$prop_of_nontumor,
+    colNames = TRUE, rowNames = TRUE
+  )
+  # write scaled beta:
+  addWorksheet(wb, "Scaled abundance scores")
+  writeData(wb,
+    sheet = "Scaled abundance scores",
+    sweep(res$beta, 1, apply(res$beta, 1, max), "/"),
+    colNames = TRUE, rowNames = TRUE
+  )
+
+  # write cell counts if available:
   if (is.element("cell.counts", names(res))) {
-    write.csv(res$cell.counts$cell.counts, file = file.path(outputFolder, "cell_count_estimates.csv", fsep = .Platform$file.sep))
+    addWorksheet(wb, "Cell counts")
+    writeData(wb,
+      sheet = "Cell counts",
+      res$cell.counts$cell.counts,
+      colNames = TRUE, rowNames = TRUE
+    )
   }
-  if (is.element("beta.granular", names(res))) {
-    write.csv(res$beta.granular, file = file.path(outputFolder, "cell_abundance_scores_granular.csv", fsep = .Platform$file.sep))
-  }
-  if (is.element("cell.counts.granular", names(res))) {
-    write.csv(res$cell.counts.granular$cell.counts, file = file.path(outputFolder, "cell_count_estimates_granular.csv", fsep = .Platform$file.sep))
-  }
+  # add segment annotations:
+  addWorksheet(wb, "Segment annotations")
+  writeData(wb,
+    sheet = "Segment annotations",
+    segmentAnnotations,
+    colNames = TRUE, rowNames = FALSE
+  )
+
+
+  # save the excel workbook:
+  saveWorkbook(wb,
+    file = file.path(outputFolder, "spatialdecon_outputs.xlsx", fsep = .Platform$file.sep),
+    overwrite = TRUE
+  )
+
+
 
   # reverse decon resids
   # write.csv(rdecon$resids, file = file.path(outputFolder, "reverse_decon_residuals.csv", fsep = .Platform$file.sep))
@@ -190,18 +233,21 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
   }
 
   # colors for variables_to_plot:
-  if (length(cols) == 0) {
+  if (!exists("cols")) {
     cols <- assign_colors(segmentAnnotations[, variables_to_plot])
   }
 
   # show just the original cells, not tumor abundance estimates derived from the is.pure.tumor argument:
   cells.to.plot <- intersect(rownames(res$beta), union(colnames(X), names(merges.full)))
 
+  # one pdf for all results:
+  pdf(file = file.path(outputFolder, "spatialdecon_results.pdf", fsep = .Platform$file.sep), width = 12)
+
   #### heatmaps
   # abundances:
   thresh <- signif(quantile(res$beta, 0.97), 2)
   p1 <- pheatmap(pmin(res$beta[cells.to.plot, ], thresh),
-    col = colorRampPalette(c("white", "darkblue"))(100),
+    col = colorRampPalette(hmcols)(100),
     fontsize_col = 4,
     annotation_col = heatmapannot,
     annotation_colors = cols,
@@ -209,42 +255,51 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
     legend_labels = c(round(seq(0, thresh, length.out = 5))[-5], paste0("Abundance scores,\ntruncated above at ", thresh))
     # main = paste0("Abundance scores, truncated above at ", thresh)
   )
-  svg(file = file.path(outputFolder, "abundance_heatmap.svg", fsep = .Platform$file.sep), width = 12)
-  print(p1)
-  dev.off()
-
+  # print(p1)
 
   # scaled abundances:
   mat <- sweep(res$beta, 1, apply(res$beta, 1, max), "/")
   mat <- replace(mat, is.na(mat), 0)
   p3 <- pheatmap(mat,
-    col = colorRampPalette(c("white", "darkblue"))(100),
+    col = colorRampPalette(hmcols)(100),
     fontsize_col = 4,
     annotation_col = heatmapannot,
     annotation_colors = cols,
     legend_breaks = c(round(seq(0, 1, length.out = 5), 2)[-5], 1),
-    legend_labels = c(round(seq(0, 1, length.out = 5), 2)[-5], "Ratio to max\nabundance")
+    legend_labels = c(round(seq(0, 1, length.out = 5), 2)[-5], "Scaled abundance\n(ratio to max)")
     # main = paste0("Abundance scores, truncated above at ", thresh)
   )
-  svg(file = file.path(outputFolder, "scaled_abundance_heatmap.svg", fsep = .Platform$file.sep), width = 12)
-  print(p3)
-  dev.off()
+  # print(p3)
 
   # proportions:
   props <- replace(res$prop_of_nontumor[cells.to.plot, ], is.na(res$prop_of_nontumor[cells.to.plot, ]), 0)
   p2 <- pheatmap(props,
-    col = viridis_pal(option = "B")(100),
+    col = colorRampPalette(hmcols)(100),
     fontsize_col = 4,
     annotation_col = heatmapannot,
     annotation_colors = cols,
     legend_breaks = round(seq(0, max(props) * 0.99, length.out = 5), 2),
-    legend_labels = c(round(seq(0, max(props), length.out = 5), 2)[-5], "Proportion")
+    legend_labels = c(round(seq(0, max(props), length.out = 5), 2)[-5], "Proportion of all\nfitted populations")
   )
-  svg(file = file.path(outputFolder, "proportion_heatmap.svg", fsep = .Platform$file.sep), width = 12)
-  print(p2)
-  dev.off()
+  # print(p2)
 
-  #### barplots
+  #### barplots setup:
+
+  # use safeTME colors if the right cells are present:
+  if (all(is.element(cells.to.plot, names(cellcols)))) {
+    col <- cellcols[cells.to.plot]
+  }
+  if (!all(is.element(cells.to.plot, names(cellcols)))) {
+    manycols <- c(
+      "#8DD3C7", "#FFFFB3", "#BEBADA", "#FB8072", "#80B1D3", "#FDB462",
+      "#B3DE69", "#FCCDE5", "#A6CEE3", "#1F78B4", "#B2DF8A", "#33A02C",
+      "#FB9A99", "#E31A1C", "#FDBF6F", "#FF7F00", "#1B9E77", "#D95F02",
+      "#7570B3", "#E7298A", "#66A61E", "#E6AB02", "#A6761D", "#666666",
+      sample(grDevices::colors(), 99)
+    )
+    col <- manycols[seq_len(length(cells.to.plot))]
+    names(col) <- cells.to.plot
+  }
 
   # choose an appropriate label size:
   namescex <- 1
@@ -259,111 +314,187 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
   }
 
 
-
-  # abundances:
-  svg(file = file.path(outputFolder, "abundance_barplot.svg", fsep = .Platform$file.sep), width = 12)
+  ### abundance barplot:
   layout(mat = matrix(c(1, 2, 3, 3), 2), widths = c(10, 3, 10, 3), heights = c(1, 8, 10))
-  par(mar = c(0, 5.2, 0, 0.2))
+  par(mar = c(0, 8.2, 0, 0.2))
   plot(p1$tree_col, labels = F, main = "", ylab = "", yaxt = "n")
-  par(mar = c(15, 5, 0, 0))
-  TIL_barplot(
-    mat = res$beta[cells.to.plot, p1$tree_col$order],
-    draw_legend = TRUE,
-    ylab = "Abundance scores",
-    cex.names = namescex
-  )
-  dev.off()
+  par(mar = c(15, 8, 0, 0))
 
-  # proportions:
-  svg(file = file.path(outputFolder, "proportion_barplot.svg", fsep = .Platform$file.sep), width = 12)
-  layout(mat = matrix(c(1, 2, 3, 3), 2), widths = c(10, 3, 10, 3), heights = c(1, 8, 10))
-  par(mar = c(0, 5.2, 0, 0.2))
-  plot(p2$tree_col, labels = F, main = "", ylab = "", yaxt = "n")
-  par(mar = c(15, 5, 0, 0))
-  TIL_barplot(
-    mat = res$prop_of_nontumor[cells.to.plot, p2$tree_col$order],
-    draw_legend = TRUE,
-    ylab = "Proportions",
-    cex.names = namescex
+  # data to plot:
+  mat <- res$beta[cells.to.plot, p1$tree_col$order]
+  # infer scale of negative y-axis for annotation colorbars
+  ymin <- -max(colSums(mat)) * 0.15
+
+  # draw barplot:
+  bp <- barplot(mat,
+    cex.lab = 1.5,
+    col = col, border = NA,
+    cex.names = namescex,
+    las = 2, main = "", ylab = "Abundance scores",
+    ylim = c(ymin, max(colSums(mat)))
   )
-  dev.off()
+  # add color bars
+  for (name in rev(variables_to_plot)) {
+    yrange <- seq(ymin / 3, ymin, length.out = length(variables_to_plot) + 1)[match(name, variables_to_plot) + c(0, 1)]
+    xwidth <- (bp[2] - bp[1]) / 2
+    for (i in 1:ncol(mat)) {
+      rect(bp[i] - xwidth, yrange[2], bp[i] + xwidth, yrange[1],
+        border = NA, col = cols[[name]][segmentAnnotations[match(colnames(mat)[i], segmentAnnotations$segmentID), name]]
+      )
+    }
+  }
+  axis(2,
+    at = seq(ymin / 3, ymin, length.out = length(variables_to_plot) + 2)[-c(1, length(variables_to_plot) + 2)],
+    las = 2, labels = variables_to_plot, lty = 0, cex.axis = 0.75
+  )
+  # draw a legend:
+  par(mar = c(0.1, 0.1, 0.1, 0.1))
+  frame()
+  legendcols <- legendnames <- c()
+  for (name in rev(names(cols))) {
+    legendcols <- c(legendcols, NA, cols[[name]], NA)
+    legendnames <- c(legendnames, name, names(cols[[name]]), NA)
+  }
+  legend("center",
+    pch = 15,
+    col = c(legendcols, rep(NA, 1), rev(col)),
+    legend = c(legendnames, "Cell", rev(names(col)))
+  )
+
+
+
+
+  ### proportion barplot:
+  layout(mat = matrix(c(1, 2, 3, 3), 2), widths = c(10, 3, 10, 3), heights = c(1, 8, 10))
+  par(mar = c(0, 8.2, 0, 0.2))
+  plot(p1$tree_col, labels = F, main = "", ylab = "", yaxt = "n")
+  par(mar = c(15, 8, 0, 0))
+
+  # data to plot:
+  mat <- res$prop_of_nontumor[cells.to.plot, p2$tree_col$order]
+  # infer scale of negative y-axis for annotation colorbars
+  ymin <- -max(colSums(mat)) * 0.15
+  # draw barplot:
+  bp <- barplot(mat,
+    cex.lab = 1.5,
+    col = col, border = NA,
+    cex.names = namescex,
+    las = 2, main = "", ylab = "Proportion of fitted cells",
+    ylim = c(ymin, max(colSums(mat)))
+  )
+  # add color bars
+  for (name in rev(variables_to_plot)) {
+    yrange <- seq(ymin / 3, ymin, length.out = length(variables_to_plot) + 1)[match(name, variables_to_plot) + c(0, 1)]
+    xwidth <- (bp[2] - bp[1]) / 2
+    for (i in 1:ncol(mat)) {
+      rect(bp[i] - xwidth, yrange[2], bp[i] + xwidth, yrange[1],
+        border = NA, col = cols[[name]][segmentAnnotations[match(colnames(mat)[i], segmentAnnotations$segmentID), name]]
+      )
+    }
+  }
+  axis(2,
+    at = seq(ymin / 3, ymin, length.out = length(variables_to_plot) + 2)[-c(1, length(variables_to_plot) + 2)],
+    las = 2, labels = variables_to_plot, lty = 0, cex.axis = 0.75
+  )
+  # draw a legend:
+  par(mar = c(0.1, 0.1, 0.1, 0.1))
+  frame()
+  legendcols <- legendnames <- c()
+  for (name in rev(names(cols))) {
+    legendcols <- c(legendcols, NA, cols[[name]], NA)
+    legendnames <- c(legendnames, name, names(cols[[name]]), NA)
+  }
+  legend("center",
+    pch = 15,
+    col = c(legendcols, rep(NA, 1), rev(col)),
+    legend = c(legendnames, "Cell", rev(names(col)))
+  )
+
+
+
+
 
   # spaceplots: draw separately for each cell:
-  if (all(is.element(c(xpositionname, ypositionname, tissueidname), colnames(segmentAnnotations)))) {
-    if (all(!is.na(segmentAnnotations[, c(xpositionname, ypositionname, tissueidname)]))) {
+  if (FALSE) {
+    # ARGUMENTS: define which variables specify xy coordinates:
+    xpositionname <- "ROICoordinateX"
+    ypositionname <- "ROICoordinateY"
+    tissueidname <- "ScanName"
 
-      # stratify on SegmentName if it has multiple levels:
-      # (assumption: SegmentName gives segment type, identifies the different kinds of AOIs that can share an ROI)
-      aoitype <- rep("", nrow(segmentAnnotations))
-      if (is.element("SegmentName", colnames(segmentAnnotations))) {
-        if (length(unique(segmentAnnotations[, "SegmentName"])) > 1) {
-          aoitype <- segmentAnnotations[, "SegmentName"]
-          aoitype <- replace(aoitype, is.na(aoitype), "na")
+
+    if (all(is.element(c(xpositionname, ypositionname, tissueidname), colnames(segmentAnnotations)))) {
+      if (all(!is.na(segmentAnnotations[, c(xpositionname, ypositionname, tissueidname)]))) {
+
+        # stratify on SegmentName if it has multiple levels:
+        # (assumption: SegmentName gives segment type, identifies the different kinds of AOIs that can share an ROI)
+        aoitype <- rep("", nrow(segmentAnnotations))
+        if (is.element("SegmentName", colnames(segmentAnnotations))) {
+          if (length(unique(segmentAnnotations[, "SegmentName"])) > 1) {
+            aoitype <- segmentAnnotations[, "SegmentName"]
+            aoitype <- replace(aoitype, is.na(aoitype), "na")
+          }
         }
-      }
-      for (varname in variables_to_plot) {
-        # abundance spaceplots
-        for (atype in unique(aoitype)) {
-          pdf(file = file.path(outputFolder, paste0("spaceplots-abundance-subset-", atype, "-colorby-", varname, ".pdf"), fsep = .Platform$file.sep))
-          for (cell in cells.to.plot) {
+        for (varname in variables_to_plot) {
+          # abundance spaceplots
+          for (atype in unique(aoitype)) {
+            for (cell in cells.to.plot) {
+              use <- aoitype == atype
+              sp <- spaceplot(
+                x = segmentAnnotations[use, xpositionname],
+                y = segmentAnnotations[use, ypositionname],
+                z = res$beta[cell, use],
+                tissue = segmentAnnotations[use, tissueidname],
+                tissue.order = NULL,
+                tissuecols = NULL,
+                tissuecols.alpha = 0.2,
+                rescale = TRUE,
+                cex = 3, col = cols[[varname]][segmentAnnotations[use, varname]],
+                nrow = NULL, rowind = NULL, colind = NULL,
+                expansion = 1.2,
+                main = cell
+              )
+              for (name in names(sp$boundaries)) {
+                text(
+                  x = median(range(sp$boundaries[[name]]$x)),
+                  y = max(sp$boundaries[[name]]$y),
+                  name
+                )
+              }
+            }
+          }
+
+          # proportion spaceplots
+          for (atype in unique(aoitype)) {
             use <- aoitype == atype
-            sp <- spaceplot(
-              x = segmentAnnotations[use, xpositionname],
-              y = segmentAnnotations[use, ypositionname],
-              z = res$beta[cell, use],
-              tissue = segmentAnnotations[use, tissueidname],
-              tissue.order = NULL,
-              tissuecols = NULL,
-              tissuecols.alpha = 0.2,
-              rescale = TRUE,
-              cex = 3, col = cols[[varname]][segmentAnnotations[use, varname]],
-              nrow = NULL, rowind = NULL, colind = NULL,
-              expansion = 1.2,
-              main = cell
-            )
-            for (name in names(sp$boundaries)) {
-              text(
-                x = median(range(sp$boundaries[[name]]$x)),
-                y = max(sp$boundaries[[name]]$y),
-                name
+            for (cell in cells.to.plot) {
+              sp <- spaceplot(
+                x = segmentAnnotations[use, xpositionname],
+                y = segmentAnnotations[use, ypositionname],
+                z = replace(res$prop_of_nontumor[cell, use], is.na(res$prop_of_nontumor[cell, use]), 0),
+                tissue = segmentAnnotations[use, tissueidname],
+                tissue.order = NULL,
+                tissuecols = NULL,
+                tissuecols.alpha = 0.2,
+                rescale = TRUE,
+                cex = 3, col = cols[[varname]][segmentAnnotations[use, varname]],
+                nrow = NULL, rowind = NULL, colind = NULL,
+                expansion = 1.2,
+                main = cell
               )
+              for (name in names(sp$boundaries)) {
+                text(
+                  x = median(range(sp$boundaries[[name]]$x)),
+                  y = max(sp$boundaries[[name]]$y),
+                  name
+                )
+              }
             }
           }
-          dev.off()
-        }
-
-        # proportion spaceplots
-        for (atype in unique(aoitype)) {
-          pdf(file = file.path(outputFolder, paste0("spaceplots-proportion-subset-", atype, "-colorby-", varname, ".pdf"), fsep = .Platform$file.sep))
-          use <- aoitype == atype
-          for (cell in cells.to.plot) {
-            sp <- spaceplot(
-              x = segmentAnnotations[use, xpositionname],
-              y = segmentAnnotations[use, ypositionname],
-              z = replace(res$prop_of_nontumor[cell, use], is.na(res$prop_of_nontumor[cell, use]), 0),
-              tissue = segmentAnnotations[use, tissueidname],
-              tissue.order = NULL,
-              tissuecols = NULL,
-              tissuecols.alpha = 0.2,
-              rescale = TRUE,
-              cex = 3, col = cols[[varname]][segmentAnnotations[use, varname]],
-              nrow = NULL, rowind = NULL, colind = NULL,
-              expansion = 1.2,
-              main = cell
-            )
-            for (name in names(sp$boundaries)) {
-              text(
-                x = median(range(sp$boundaries[[name]]$x)),
-                y = max(sp$boundaries[[name]]$y),
-                name
-              )
-            }
-          }
-          dev.off()
         }
       }
-    }
-  } # end spaceplots
+    } # end spaceplots
+  }
+  dev.off()
 }
 
 
@@ -2436,7 +2567,6 @@ makeTissueGrid <- function(x, y, tissue,
   out <- list(x = xnew, y = ynew)
   return(out)
 }
-
 
 
 mean.resid.sd <- c(
