@@ -258,8 +258,8 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
   # print(p1)
 
   # scaled abundances:
-  mat <- sweep(res$beta, 1, apply(res$beta, 1, max), "/")
-  mat <- replace(mat, is.na(mat), 0)
+  epsilon <- min(res$beta[res$beta > 0])
+  mat <- sweep(res$beta, 1, pmax(apply(res$beta, 1, max), epsilon), "/")
   p3 <- pheatmap(mat,
     col = colorRampPalette(hmcols)(100),
     fontsize_col = 4,
