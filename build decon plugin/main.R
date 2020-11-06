@@ -324,7 +324,10 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
   mat <- res$beta[cells.to.plot, p1$tree_col$order]
   # infer scale of negative y-axis for annotation colorbars
   ymin <- -max(colSums(mat)) * 0.15
-
+  if (!is.finite(ymin)) {
+    ymin = 0
+  }
+  
   # draw barplot:
   bp <- barplot(mat,
     cex.lab = 1.5,
@@ -372,8 +375,9 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
 
   # data to plot:
   mat <- res$prop_of_nontumor[cells.to.plot, p2$tree_col$order]
+  mat <- replace(mat, is.na(mat), 0)
   # infer scale of negative y-axis for annotation colorbars
-  ymin <- -max(colSums(mat)) * 0.15
+  ymin <- -0.15
   # draw barplot:
   bp <- barplot(mat,
     cex.lab = 1.5,
