@@ -258,8 +258,8 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
   # print(p1)
 
   # scaled abundances:
-  mat <- sweep(res$beta, 1, apply(res$beta, 1, max), "/")
-  mat <- replace(mat, is.na(mat), 0)
+  epsilon <- min(res$beta[res$beta > 0])
+  mat <- sweep(res$beta, 1, pmax(apply(res$beta, 1, max), epsilon), "/")
   p3 <- pheatmap(mat,
     col = colorRampPalette(hmcols)(100),
     fontsize_col = 4,
@@ -323,7 +323,7 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
   # data to plot:
   mat <- res$beta[cells.to.plot, p1$tree_col$order]
   # infer scale of negative y-axis for annotation colorbars
-  ymin <- -max(colSums(mat)) * 0.15
+  ymin <- -max(colSums(mat, na.rm = T), na.rm = T) * 0.15
 
   # draw barplot:
   bp <- barplot(mat,
@@ -372,8 +372,10 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
 
   # data to plot:
   mat <- res$prop_of_nontumor[cells.to.plot, p2$tree_col$order]
+  mat <- replace(mat, is.na(mat), 0)
+  
   # infer scale of negative y-axis for annotation colorbars
-  ymin <- -max(colSums(mat)) * 0.15
+  ymin <- -0.15
   # draw barplot:
   bp <- barplot(mat,
     cex.lab = 1.5,
