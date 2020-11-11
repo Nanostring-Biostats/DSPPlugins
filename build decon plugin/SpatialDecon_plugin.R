@@ -260,7 +260,7 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
   # scaled abundances:
   epsilon <- min(res$beta[res$beta > 0])
   mat <- sweep(res$beta, 1, pmax(apply(res$beta, 1, max), epsilon), "/")
-  p3 <- pheatmap(mat,
+  p3 <- pheatmap(mat[cells.to.plot, ],
     col = colorRampPalette(hmcols)(100),
     fontsize_col = 4,
     annotation_col = heatmapannot,
