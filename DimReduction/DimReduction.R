@@ -1,19 +1,19 @@
 # Type of Plot:
-plot_type <- "tSNE"
+plot_type <- "UMAP"
 # Options: tSNE, UMAP, PCA
 
 # Plot Parameters
-color_by = "CD68" # tag, factor, or target
-shape_by = "SegmentName" # tag, or factor
+color_by = "SegmentName" # tag, factor, target or NULL
+shape_by = "SegmentName" # tag, factor or NULL
 plot_font = list(family = "sans", size = 15)
-# shape & color can be set to NULL
+save_as = "pdf"
 # font families include sans, serif, mono and
 # may include specifically named fonts, but 
 # these may not always render properly.
 
 # Plot color options
-plot_colors = list("orange2", "gray", "darkblue")
-color_levels = c("High", "Mid", "Low")
+plot_colors = list("green3", "cyan3")
+color_levels = c("PanCK-pos", "PanCK-neg")
 # color_levels must match values in the color_by 
 # column in the annotations file when using a tag
 # or a factor. For Targets use "High", "Low" and "Mid".
@@ -60,15 +60,6 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
   rownames(targetCountMatrix) <- targetAnnotations[match(rownames(targetCountMatrix),
                                                          targetAnnotations[ , "TargetGUID"]),
                                                    "TargetName"]
-  # gather color parameters
-  names(plot_colors) <- color_levels[1:length(plot_colors)]
-  params <- list("plot_type" = plot_type,
-                 "color_by" = color_by,
-                 "shape_by" = shape_by,
-                 "plot_font" = plot_font,
-                 "plot_colors" = plot_colors,
-                 "color_levels" = color_levels)
-  
   # Step 2:
   # Calculate PCA, tSNE, or UMAP dimensions
   DR_ann <- calc_DR(plot_type = plot_type,
@@ -92,18 +83,54 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
     segmentAnnotations[, color_by] <- unlist(log2(targetCountMatrix[color_by, ]))
     colType <- 'Target'
   } else {
-    segmentAnnotations
-    if(!all(unique(segmentAnnotations[, color_by] %in% color_levels))) {
-      stop('Error: Mismatch in levels used with colors')
-    }
+    lvls <- unique(segmentAnnotations[, color_by])
+    # if(!all(lvls %in% color_levels)) {
+    #   stop('Error: Mismatch in levels used with colors')
+    # }
     colType <- 'Annot'
+    # allow users to pass no or incomplete color levels for annotations
+    if(is.null(color_levels)) {
+      color_levels <- lvls
+    } else if(!all(color_levels %in% lvls)) {
+      new_lvls <- lvls[!lvls %in% color_levels]
+      color_levels <- c(color_levels[color_levels %in% lvls],
+                        new_lvls)
+      if(length(color_levels) > length(plot_colors) & 
+         (!plot_colors[[1]] %in% rownames(brewer.pal.info))) {
+        plot_colors <- c(plot_colors,
+                         extend_palette(n = length(new_lvls)))
+      }
+      # need to think through the logic on this.
+      # one option: set color_levels -> NULL to let it 
+      #  figure it out on it's own
+    }
   }
-  params$colType <- colType
   
   # Error catch - shape must be an annotation factor or tag
-  if(!shape_by %in% colnames(segmentAnnotations)) {
-    stop('Shape parameter not found in Segment Annotations\n')
-  }
+  # if(!is.null(shape_by) & !shape_by %in% colnames(segmentAnnotations)) {
+  #   stop('Shape parameter not found in Segment Annotations\n')
+  # }
+  
+  # # check color levels, grab new ones if they aren't
+  # # in the appropriate order
+  # lvls <- unique(segmentAnnotations[, color_by])
+  # if(!all(color_levels %in% lvls)) {
+  #   color_levels <- c(color_levels[color_levels %in% lvls],
+  #                     lvls[!lvls %in% color_levels])
+  # }
+  # need to think through the logic on this.
+  # one option: set color_levels -> NULL to let it 
+  #  figure it out on it's own
+  
+  # gather color parameters
+  names(plot_colors) <- color_levels[1:length(plot_colors)]
+  params <- list("plot_type" = plot_type,
+                 "color_by" = color_by,
+                 "shape_by" = shape_by,
+                 "plot_font" = plot_font,
+                 "plot_colors" = plot_colors,
+                 "color_levels" = color_levels,
+                 "colType" = colType)
   
   # iterate through appropriate dimensions
   plt_list <- list()
@@ -167,8 +194,7 @@ calc_DR <- function(plot_type = NULL,
                     targetCountMatrix = NULL,
                     segmentAnnotations = NULL) {
   if(plot_type == "UMAP") {
-    set.seed(seed = 28502)
-    dr_data <- umap(t(log2(targetCountMatrix)))
+    dr_data <- umap(t(log2(targetCountMatrix)), random.state = 28502)
     segmentAnnotations$Dim1 <- dr_data$layout[, 1]
     segmentAnnotations$Dim2 <- dr_data$layout[, 2]
   } else if(plot_type == "tSNE") {
@@ -282,6 +308,20 @@ plot_DR <- function(targetCountMatrix = NULL,
     }
   }
   return(plt)
+}
+
+# extend_palette: create a brewer.pal color list
+#   not limited by size of palette
+extend_palette <- function(palette = 'Set1',
+                           n = 9) {
+  pal_n <- brewer.pal.info[palette, 1]
+  if(n <= pal_n) {
+    pal <- brewer.pal(n, palette)
+  } else {
+    pal <- brewer.pal(pal_n, palette)
+    pal <- colorRampPalette(pal)(n)
+  }
+  return(pal)
 }
 
 # annot colors:
