@@ -1,34 +1,43 @@
 #        User Options        #
 ##############################
-plot_type <- "PCA"
+plot_type = "PCA"
 # Options: tSNE, UMAP, PCA
 
 # Plot Parameters
-color_by = "SegmentName"# tag, factor, target or NULL
-shape_by = "SegmentName" # tag, factor or NULL
+color_by = "SegmentName"
+# tag, factor, target or NULL
+
+shape_by = "SegmentName"
+# tag, factor or NULL
+
 plot_font = list(family = "sans",
                  size = 15)
-save_as = "pdf"
 # font families include sans, serif, mono and
 # may include specifically named fonts, but 
 # these may not always render properly.
 
-# Plot color options
+save_as = "pdf"
+# options: pdf, jpeg, tiff, png, bmp, or svg
+
 plot_colors = list("green3", "cyan3")
 color_levels = c("PanCK-pos", "PanCK-neg")
-# color_levels must match values in the color_by 
-# column in the annotations file when using a tag
-# or a factor. color_levels may be set to NULL, and
-# the plugin will automatically asign levels to colors
+# color_levels must match values in the
+# color_by column in the annotations file 
+# when using a tag or a factor. color_levels 
+# may be set to NULL, and the plugin will 
+# automatically asign levels to colors
 #
-# When coloring by a target use "High", "Low" and "Mid".
-#   "Mid" is optional.
+# When coloring by a target use "High", "Low" 
+# and "Mid". "Mid" is optional.
 #
-# the first entry in plot_colors may be set to a r color palette 
-# if coloring using annotations. the palette order shall
-# be alphabetical unless values of color_by are provided
-# in color_levels, in which case that order shall be used
+# the first entry in plot_colors may be set 
+# to a r color palette if coloring using 
+# annotations. the palette order shall be 
+# alphabetical unless values of color_by 
+# are provided in color_levels, in which 
+# case that order shall be used
 
+##############################
 # Copyright (C) 2020, NanoString Technologies, Inc.
 #    This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
 #    This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
@@ -38,6 +47,7 @@ color_levels = c("PanCK-pos", "PanCK-neg")
 #   530 Fairview Avenue N
 #   Seattle, WA 98109
 # Tel: (888) 358-6266
+##############################
 
 ##############################
 #        Execution Code      # 
