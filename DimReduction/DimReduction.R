@@ -1,11 +1,13 @@
-# Type of Plot:
+#        User Options        #
+##############################
 plot_type <- "PCA"
 # Options: tSNE, UMAP, PCA
 
 # Plot Parameters
-color_by = "SegmentName" # tag, factor, target or NULL
+color_by = "SegmentName"# tag, factor, target or NULL
 shape_by = "SegmentName" # tag, factor or NULL
-plot_font = list(family = "sans", size = 15)
+plot_font = list(family = "sans",
+                 size = 15)
 save_as = "pdf"
 # font families include sans, serif, mono and
 # may include specifically named fonts, but 
@@ -16,22 +18,20 @@ plot_colors = list("green3", "cyan3")
 color_levels = c("PanCK-pos", "PanCK-neg")
 # color_levels must match values in the color_by 
 # column in the annotations file when using a tag
-# or a factor. For Targets use "High", "Low" and "Mid".
-#   "Mid" is optional
-# the first entry in plot_colors may be set to a palette 
+# or a factor. color_levels may be set to NULL, and
+# the plugin will automatically asign levels to colors
+#
+# When coloring by a target use "High", "Low" and "Mid".
+#   "Mid" is optional.
+#
+# the first entry in plot_colors may be set to a r color palette 
 # if coloring using annotations. the palette order shall
-# be alphabetical unless all values of color_by are provided
+# be alphabetical unless values of color_by are provided
 # in color_levels, in which case that order shall be used
 
-#plot_color_theme = "RdBu"
-#reverse_theme = TRUE # reverse palette color
-# Set to plot_color_theme = NULL if you'd 
-# prefer to set your colors manually below
-#plot_color_theme = "RdBu" # color palette
-
-##################
-# Execution Code #
-##################
+##############################
+#        Execution Code      # 
+##############################
 # Libraries:
 library(Rtsne)
 library(umap)
@@ -47,16 +47,13 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
   # Step 1: format dataset
   # Make a table to check the passed dataframes from DSP
   targetCountMatrix <- dataset
-  
   # Make unique segment identifiers instead of GUIDs
   segmentAnnotations <- segmentAnnotations %>%
     mutate(segmentDisplayName = paste(ScanName, ROIName, SegmentName, sep=" | "))
-  
   # Update count matrix column names with new segment unique ID instead of GUID. 
   names(targetCountMatrix) <- segmentAnnotations[match(names(targetCountMatrix),
                                                        segmentAnnotations[ , "segmentID"]),
                                                  "segmentDisplayName"]  
-  
   # Update count matrix rownames with targetNames
   rownames(targetCountMatrix) <- targetAnnotations[match(rownames(targetCountMatrix),
                                                          targetAnnotations[ , "TargetGUID"]),
@@ -85,44 +82,23 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
     colType <- 'Target'
   } else {
     lvls <- unique(segmentAnnotations[, color_by])
-    # if(!all(lvls %in% color_levels)) {
-    #   stop('Error: Mismatch in levels used with colors')
-    # }
     colType <- 'Annot'
     # allow users to pass no or incomplete color levels for annotations
     if(is.null(color_levels)) {
       color_levels <- lvls
+      
     } else if(!all(color_levels %in% lvls)) {
       new_lvls <- lvls[!lvls %in% color_levels]
       color_levels <- c(color_levels[color_levels %in% lvls],
                         new_lvls)
-      if(length(color_levels) > length(plot_colors) & 
-         (!plot_colors[[1]] %in% rownames(brewer.pal.info))) {
-        plot_colors <- c(plot_colors,
-                         extend_palette(n = length(new_lvls)))
-      }
-      # need to think through the logic on this.
-      # one option: set color_levels -> NULL to let it 
-      #  figure it out on it's own
+    }
+    if(length(color_levels) > length(plot_colors) & 
+       (!plot_colors[[1]] %in% rownames(brewer.pal.info))) {
+      plot_colors <- c(plot_colors,
+                       extend_palette(n = length(new_lvls)))
     }
   }
-  
-  # Error catch - shape must be an annotation factor or tag
-  # if(!is.null(shape_by) & !shape_by %in% colnames(segmentAnnotations)) {
-  #   stop('Shape parameter not found in Segment Annotations\n')
-  # }
-  
-  # # check color levels, grab new ones if they aren't
-  # # in the appropriate order
-  # lvls <- unique(segmentAnnotations[, color_by])
-  # if(!all(color_levels %in% lvls)) {
-  #   color_levels <- c(color_levels[color_levels %in% lvls],
-  #                     lvls[!lvls %in% color_levels])
-  # }
-  # need to think through the logic on this.
-  # one option: set color_levels -> NULL to let it 
-  #  figure it out on it's own
-  
+
   # gather color parameters
   names(plot_colors) <- color_levels[1:length(plot_colors)]
   params <- list("plot_type" = plot_type,
@@ -209,25 +185,34 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
   }
   
   # Save XLSX table with plot dimension data for re-graphing
-  wb <- createWorkbook("DimensionReduction")
-  addWorksheet(wb, "Segment Annotations")
-  writeData(wb,
+  wb <- createWorkbook(title = paste("Dimension Reduction,", plot_type), 
+                       creator = "NanoString DSP Plugin")
+  addWorksheet(wb = wb, "Segment Annotations")
+  writeData(wb = wb,
             sheet = "Segment Annotations",
-            segmentAnnotations,
+            x = segmentAnnotations,
             colNames = TRUE, rowNames = FALSE)
   if(plot_type == "PCA") {
-    addWorksheet(wb, "PC Loadings")
-    writeData(wb,
-              sheet = "PC Loadings",
-              DR_ann$data$rotation,
+    addWorksheet(wb, "Principal Components (All)")
+    writeData(wb = wb,
+              sheet = "Principal Components (All)",
+              x = DR_ann$data$x,
               colNames = TRUE, rowNames = TRUE)
+    setColWidths(wb = wb, sheet = "Principal Components (All)", cols = 1, widths = "auto")
+    addWorksheet(wb, "PC Loadings")
+    writeData(wb = wb,
+              sheet = "PC Loadings",
+              x = DR_ann$data$rotation[order(abs(DR_ann$data$rotation[, 1]), decreasing = TRUE), ],
+              colNames = TRUE, rowNames = TRUE)
+    setColWidths(wb = wb, sheet = "PC Loadings", cols = 1, widths = "auto")
     addWorksheet(wb, "Variance Estimates")
-    writeData(wb,
-              sheet = "Variance Estimates",
-              as.data.frame(var_est),
-              colNames = FALSE, rowNames = TRUE)
+    writeData(wb = wb,
+              sheet = "Variance Estimates", 
+              x = t(summary(DR_ann$data)$importance),
+              colNames = TRUE, rowNames = TRUE)
+    setColWidths(wb = wb, sheet = "Variance Estimates", cols = 1:4, widths = "auto")
   }
-  saveWorkbook(wb,
+  saveWorkbook(wb = wb,
                file = file.path(outputFolder,
                                 paste0(plot_type, " Data.xlsx"),
                                 fsep = .Platform$file.sep),
