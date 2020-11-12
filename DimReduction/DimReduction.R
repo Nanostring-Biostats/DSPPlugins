@@ -249,9 +249,6 @@ calc_DR <- function(plot_type = NULL,
     stop('Error: Additional plot types not yet supported\n')
   }
   rtn <- list(annot = segmentAnnotations, data = dr_data)
-  if(plot_type == "PCA") {
-    rtn <- c(rtn, list(var = var_est))
-  }
   return(rtn)
 }
 
@@ -358,47 +355,3 @@ extend_palette <- function(palette = 'Set1',
   }
   return(pal)
 }
-
-# annot colors:
-# if(is.null(params$plot_color_theme)) {
-#   cols <- params$plot_colors
-# } else {
-#   n_cols <- length(unique(segmentAnnotations[, params$color_by]))
-#   if(n_cols < brewer.pal.info[params$plot_color_theme, 1]) {
-#     cols <- brewer.pal(n = max(3, n_cols),
-#                        name = params$plot_color_theme)
-#     cols <- cols[1:n_cols]
-#   } else {
-#     cols <- brewer.pal(n = brewer.pal.info[params$plot_color_theme, 1],
-#                        name = params$plot_color_theme)
-#     cols <- colorRampPalette(cols)(n_cols)
-#   }
-#   if(reverse_theme) {
-#     cols <- rev(cols)
-#   }
-#   names(cols) <- names(params$plot_colors)
-# }
-#
-# target colors:
-
-# otherwise grab the palette, and determine where to replace the 'light'
-# color with gray instead for visualization on a white background
-# cols <- brewer.pal(n = brewer.pal.info[plot_color_theme, 1],
-#                    name = plot_color_theme)
-# if(reverse_theme) {
-#   cols <- rev(cols)
-# }
-# if(brewer.pal.info[plot_color_theme, 2] == 'seq') {
-#   # if sequential palette use gray -> color
-#   # use 1 away from ends of palettes as these are brighter than the final colors
-#   plt <- plt +
-#     scale_color_gradient(name = clr_name,
-#                          low = 'gray', high = cols[length(cols)-1])
-#   
-# } else {
-#   # if divergent use color1 -> gray -> color2
-#   plt <- plt +
-#     scale_color_gradient2(name = clr_name,
-#                           low = cols[2], mid = 'gray', high = cols[length(cols)-1],
-#                           midpoint = median(segmentAnnotations[, color_by]))
-# }
