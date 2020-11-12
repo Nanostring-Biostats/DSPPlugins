@@ -147,19 +147,7 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
               var_est = var_est)
   }
   
-  # Step 4: Save Files
-  # Save File 
-  
-  pdf(file = file.path(outputFolder, 
-                       plot_type, "_with_",
-                       color_by, "_and_",
-                       shape_by, ".pdf",
-                       fsep = .Platform$file.sep),
-      width = 8,
-      height = 6)
-  print(plt_list)
-  
-  #Variance Estimate Plot - PCA only
+  # If PCA - create variance explained plot:
   if(plot_type == "PCA") {
     v_dat <- data.frame(Variance = 100*cumsum(var_est),
                         PC = 1:length(var_est))
@@ -174,15 +162,57 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
       scale_fill_gradient(low = 'darkgray', high = 'dodgerblue2', limits = c(0,100)) +
       labs(x = 'Principal Component #', y = 'Cumulative Variance Explained') +
       theme(legend.position = "none")
-    print(vplt)
   }
-  dev.off()
+  
+  # Step 4: Save Files
+  # Save File. PDF is first case
+  if(tolower(save_as) == 'pdf') {
+    pdf(file = file.path(outputFolder, 
+                         paste0(plot_type, "_with_",
+                                color_by, "_and_",
+                                shape_by, ".pdf"),
+                         fsep = .Platform$file.sep),
+        width = 8,
+        height = 6)
+    print(plt_list)
+    # Also save Variance Estimate Plot - PCA only
+    if(plot_type == "PCA") {
+      print(vplt)
+    }
+    dev.off()
+  # Save individual figures for all graphs if not using a PDF
+  } else {
+    for(plt in names(plt_list)) {
+      ggsave(filename = file.path(outputFolder, 
+                                  paste0(plot_type, "_", plt, "_with_",
+                                         color_by, "_and_",
+                                         shape_by, ".", tolower(save_as)),
+                                  fsep = .Platform$file.sep),
+             plot = plt_list[[plt]],
+             device = tolower(save_as),
+             units = "in",
+             dpi = 300,
+             width = 8,
+             height = 6)
+    }
+    if(plot_type == "PCA") {
+      ggsave(filename = file.path(outputFolder, 
+                                  paste0("PCAVariancePlot.", tolower(save_as)),
+                                  fsep = .Platform$file.sep),
+             plot = vplt,
+             device = tolower(save_as), 
+             units = "in",
+             dpi = 300,
+             width = 8,
+             height = 6)
+    }
+  }
   
   # Save XLSX table with plot dimension data for re-graphing
   wb <- createWorkbook("DimensionReduction")
-  addWorksheet(wb, "Updated Segment Annotations")
+  addWorksheet(wb, "Segment Annotations")
   writeData(wb,
-            sheet = "Updated Segment Annotations",
+            sheet = "Segment Annotations",
             segmentAnnotations,
             colNames = TRUE, rowNames = FALSE)
   if(plot_type == "PCA") {
