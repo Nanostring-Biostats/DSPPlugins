@@ -1,5 +1,5 @@
 # Type of Plot:
-plot_type <- "UMAP"
+plot_type <- "PCA"
 # Options: tSNE, UMAP, PCA
 
 # Plot Parameters
@@ -40,6 +40,7 @@ library(ggplot2)
 library(reshape2)
 library(dplyr)
 library(RColorBrewer)
+library(openxlsx)
 
 # main function
 main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
@@ -177,11 +178,30 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
   }
   dev.off()
   
-  # Save CSV table with plot dimension data for re-graphing
-  write.csv(segmentAnnotations,
-            file = file.path(outputFolder, paste0("Annotations with", plot_type, " Dims.csv"),
-                             fsep = .Platform$file.sep),
-            row.names = FALSE)
+  # Save XLSX table with plot dimension data for re-graphing
+  wb <- createWorkbook("DimensionReduction")
+  addWorksheet(wb, "Updated Segment Annotations")
+  writeData(wb,
+            sheet = "Updated Segment Annotations",
+            segmentAnnotations,
+            colNames = TRUE, rowNames = FALSE)
+  if(plot_type == "PCA") {
+    addWorksheet(wb, "PC Loadings")
+    writeData(wb,
+              sheet = "PC Loadings",
+              DR_ann$data$rotation,
+              colNames = TRUE, rowNames = TRUE)
+    addWorksheet(wb, "Variance Estimates")
+    writeData(wb,
+              sheet = "Variance Estimates",
+              as.data.frame(var_est),
+              colNames = FALSE, rowNames = TRUE)
+  }
+  saveWorkbook(wb,
+               file = file.path(outputFolder,
+                                paste0(plot_type, " Data.xlsx"),
+                                fsep = .Platform$file.sep),
+               overwrite = TRUE)
 }
 
 ##### Helper Functions #####
