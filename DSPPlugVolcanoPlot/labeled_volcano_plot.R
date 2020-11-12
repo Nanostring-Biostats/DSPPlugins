@@ -1,15 +1,7 @@
 ### functions to create labeled volcano plots:
-# note: this code assumes the input of volcano plot
+# note: this code assumes the input of VOLCANO PLOT 
+#       without header and tab delimited
 
-# TESTING DATASET #
-
-dataset <- readxl::read_xlsx(path="Q3 Norm.xlsx", sheet="TargetCountMatrix")
-segmentAnnotations <- as.data.frame(readxl::read_excel(path="Q3 Norm.xlsx", 
-                                                       sheet="SegmentProperties"))
-targetAnnotations <- as.data.frame(readxl::read_excel(path="Q3 Norm.xlsx", 
-                                                      sheet="TargetProperties"))
-targetAnnotations$TargetGroup <- as.character(targetAnnotations$TargetGroup)
-outputFolder <- "test_output/"
 
 ##########################################################
 ####      Arguments to be modified by user            ####
@@ -24,13 +16,13 @@ output_format <- "png"
 
 ######################## LABELING ######################## 
 # Volcano Plot Title
-plot_title <- "MSI vs MSS"
+plot_title <- "AOI Surface Area Comparisons"
 
 # Negative (left) label for Fold Change from volcano plot
-negative_label <- "MSS"
+negative_label <- "50 um Circle"
 
 # Positive (right) label for Fold Change from volcano plot
-positive_label <- "MSI"
+positive_label <- "200 um Circle"
 
 # Number of genes to label
 #   gene_list overrides this variable if set
@@ -91,27 +83,46 @@ library(stats)
 library(stringr)
 
 # main function called by DSP-DA:
-main <- function(dataset, segmentAnnotations, 
-                 targetAnnotations, outputFolder){
+main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder){
   
   # access volcano plot file:
-  de_results <- read.table(de_results_filename, header = TRUE, sep = "\t", stringsAsFactors = FALSE)
+  de_results <- read.table(de_results_filename, header=TRUE, sep="\t", stringsAsFactors=FALSE)
+  
+  #check if header is removed from volcano plot file
+  if(!"Target.Name" %in% colnames(de_results)){
+    
+    #if header isn't removed in de_results_file then remove header and set column names
+    header <- grep(pattern = "Target Name", x = de_results)
+    
+    if(length(header) > 0){
+      colnames(de_results) <- de_results[header,]
+      de_results <- de_results[-c(1:header),]
+    }else{
+      fail(message = "Too many rows were removed from VOLCANO PLOT.xlsx before running script. 
+           The row with Target Name in the first column must be kept.")
+    }
+  }
   
   # test for valid input variables
-  test_variable_formats(de = de_results)
+  test_variable_formats(de=de_results)
   
   # calculate FDR and add it as a column
-  de_results$FDR <- p.adjust(de_results$Pvalue, method = "fdr")
+  de_results$FDR <- p.adjust(de_results$Pvalue, method="fdr")
   
   # create volcano plot
-  volcano_plot(de = de_results)
+  gp <- volcano_plot(de=de_results)
+  
+  ggsave(filename = paste0(plot_title, "_volcano_plot.", output_format),
+         plot = gp,
+         device = output_format,
+         path = outputFolder)
 } 
 
 #' volcano_plot
 #'
 #' create volcano plot figure using user input variables and DE results from DSPDA
 #' @param de data frame of DE results from DSPDA
-#' @return Draws a volcano plot
+#' @return gp ggplot of volcano plot
 #' @export
 volcano_plot <- function(de){
   
@@ -124,7 +135,7 @@ volcano_plot <- function(de){
     labs(y = "Significance, -log10(pval)", 
          x = paste(negative_label, "<-", "log2(FC)", "->", positive_label, sep = " "),
          title = plot_title)+
-    theme(aspect.ratio = 1, text=element_text(size=font_size,  family=font_family))+
+    theme(aspect.ratio = 1, text=element_text(size=font_size, family=font_family))+
     scale_x_continuous(limits = c(-maxFC, maxFC))
     #scale_y_continuous(sec.axis = sec_axis(trans = ~ 10^-., name = "pval")) 
     # attempt to put pval on a second y axis, 
@@ -154,8 +165,8 @@ volcano_plot <- function(de){
     }
     
     gene_coloring$Target_coloring <- ifelse(test = gene_coloring$Log2 < 0, 
-                                            yes = paste(label_thresh, negative_label), 
-                                            no = paste(label_thresh, positive_label))
+                                            yes = paste(label_thresh, negative_label, sep = "\n"), 
+                                            no = paste(label_thresh, positive_label, sep = "\n"))
     
     color_label <- "Significance"
   }
@@ -188,12 +199,10 @@ volcano_plot <- function(de){
   }  
   
   # add gene labels to ggplot
-  gp <- gp + geom_text_repel(data = gene_labels, aes(label=Target.Name), force = 3.5)
+  gp <- gp + geom_text_repel(data = gene_labels, aes(label=Target.Name), 
+                             size = max(min(font_size*min(5/nrow(gene_labels), 5.5)), 3), force = 5)
   
-  # save ggplot 
-  ggsave(filename = paste0(outputFolder, plot_title, "_volcano_plot.", output_format), 
-         plot = gp, device = output_format, width = plot_width, height = plot_height)
-  
+  return(gp)
 }
 
 #' areColors
@@ -304,10 +313,12 @@ test_variable_formats <- function(de = de_results){
     identical_class(object = font_size, object_name = "font_size", class_name = "numeric")
   }
   
+  allowed_fonts <- c("serif", "sans", "mono")
+  
   # check that font_family is an allowable font
-  if(!font_family %in% names(windowsFonts())){
-    fail(message = paste("Given font_family is not a valid font. Allowed fonts are", 
-                         paste(names(windowsFonts()), collapse = ", ")))
+  if(!font_family %in% allowed_fonts){
+    fail(message = paste("Given font_family is not a valid font. Allowed fonts are",
+                         paste(allowed_fonts, collapse = ", ")))
   }
   
   ########################################### PLOT SIZE ############################################
@@ -338,8 +349,3 @@ test_variable_formats <- function(de = de_results){
              label = paste("Not enough colors were given./n", max(length(target_groups), 2), 
                            "expected, only", length(color_options), "given"))
 }
-
-main(dataset = dataset, 
-     segmentAnnotations = segmentAnnotations, 
-     targetAnnotations = targetAnnotations, 
-     outputFolder = outputFolder)
