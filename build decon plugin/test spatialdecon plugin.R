@@ -16,7 +16,7 @@ main(
 
 # testing other args:
 if (FALSE) {
-  heatmaptruncationlimit = 20
-  draw_svgs_instead_of_pdf = TRUE
-  subset_of_cells_to_show = c("macrophages", "plasma", "NK") 
+  heatmaptruncationlimit <- 20
+  draw_svgs_instead_of_pdf <- TRUE
+  subset_of_cells_to_show <- c("macrophages", "plasma", "NK")
 }
