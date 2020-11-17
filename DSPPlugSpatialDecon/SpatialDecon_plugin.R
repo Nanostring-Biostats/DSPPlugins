@@ -51,7 +51,13 @@ hmcols <- c("white", "darkblue")
 # hmcols = c("#440154FF", "#482878FF", "#3E4A89FF", "#31688EFF", "#26828EFF", "#1F9E89FF", "#35B779FF", "#6DCD59FF", "#B4DE2CFF", "#FDE725FF")
 
 
+#### advanced arguments
 
+heatmaptruncationlimit <- NULL
+pdf_width <- 12
+pdf_height <- 7
+draw_svgs_instead_of_pdf <- FALSE
+subset_of_cells_to_show <- NULL
 
 
 ##########################################################
@@ -240,12 +246,29 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
   # show just the original cells, not tumor abundance estimates derived from the is.pure.tumor argument:
   cells.to.plot <- intersect(rownames(res$beta), union(colnames(X), names(merges.full)))
 
+  ## show only a subset of cells if specified:
+  if (length(subset_of_cells_to_show) >= 2) {
+    cells.to.plot <- intersect(cells.to.plot, subset_of_cells_to_show)
+  }
+
+
   # one pdf for all results:
-  pdf(file = file.path(outputFolder, "spatialdecon_results.pdf", fsep = .Platform$file.sep), width = 12)
+  if (!draw_svgs_instead_of_pdf) {
+    pdf(file = file.path(outputFolder, "spatialdecon_results.pdf", fsep = .Platform$file.sep), width = pdf_width, height = pdf_height)
+  }
 
   #### heatmaps
   # abundances:
-  thresh <- signif(quantile(res$beta, 0.97), 2)
+  if (length(heatmaptruncationlimit) == 1) {
+    thresh <- heatmaptruncationlimit
+  }
+  if (length(heatmaptruncationlimit) == 0) {
+    thresh <- signif(quantile(res$beta, 0.97), 2)
+  }
+
+  if (draw_svgs_instead_of_pdf) {
+    svg(file = file.path(outputFolder, "spatialdecon_results_abundance_heatmap.svg", fsep = .Platform$file.sep), width = pdf_width, height = pdf_height)
+  }
   p1 <- pheatmap(pmin(res$beta[cells.to.plot, ], thresh),
     col = colorRampPalette(hmcols)(100),
     fontsize_col = 4,
@@ -255,11 +278,19 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
     legend_labels = c(round(seq(0, thresh, length.out = 5))[-5], paste0("Abundance scores,\ntruncated above at ", thresh))
     # main = paste0("Abundance scores, truncated above at ", thresh)
   )
+
+  if (draw_svgs_instead_of_pdf) {
+    dev.off()
+  }
   # print(p1)
 
   # scaled abundances:
   epsilon <- min(res$beta[res$beta > 0])
   mat <- sweep(res$beta, 1, pmax(apply(res$beta, 1, max), epsilon), "/")
+
+  if (draw_svgs_instead_of_pdf) {
+    svg(file = file.path(outputFolder, "spatialdecon_results_scaled_abundance_heatmap.svg", fsep = .Platform$file.sep), width = pdf_width, height = pdf_height)
+  }
   p3 <- pheatmap(mat[cells.to.plot, ],
     col = colorRampPalette(hmcols)(100),
     fontsize_col = 4,
@@ -269,10 +300,16 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
     legend_labels = c(round(seq(0, 1, length.out = 5), 2)[-5], "Scaled abundance\n(ratio to max)")
     # main = paste0("Abundance scores, truncated above at ", thresh)
   )
-  # print(p3)
+  if (draw_svgs_instead_of_pdf) {
+    dev.off()
+  }
 
   # proportions:
   props <- replace(res$prop_of_nontumor[cells.to.plot, ], is.na(res$prop_of_nontumor[cells.to.plot, ]), 0)
+
+  if (draw_svgs_instead_of_pdf) {
+    svg(file = file.path(outputFolder, "spatialdecon_results_proportions_heatmap.svg", fsep = .Platform$file.sep), width = pdf_width, height = pdf_height)
+  }
   p2 <- pheatmap(props,
     col = colorRampPalette(hmcols)(100),
     fontsize_col = 4,
@@ -282,6 +319,11 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
     legend_labels = c(round(seq(0, max(props), length.out = 5), 2)[-5], "Proportion of all\nfitted populations")
   )
   # print(p2)
+
+  if (draw_svgs_instead_of_pdf) {
+    dev.off()
+  }
+
 
   #### barplots setup:
 
@@ -315,6 +357,10 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
 
 
   ### abundance barplot:
+
+  if (draw_svgs_instead_of_pdf) {
+    svg(file = file.path(outputFolder, "spatialdecon_results_abundance_barplot.svg", fsep = .Platform$file.sep), width = pdf_width, height = pdf_height)
+  }
   layout(mat = matrix(c(1, 2, 3, 3), 2), widths = c(10, 3, 10, 3), heights = c(1, 8, 10))
   par(mar = c(0, 8.2, 0, 0.2))
   plot(p1$tree_col, labels = F, main = "", ylab = "", yaxt = "n")
@@ -323,7 +369,10 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
   # data to plot:
   mat <- res$beta[cells.to.plot, p1$tree_col$order]
   # infer scale of negative y-axis for annotation colorbars
-  ymin <- -max(colSums(mat, na.rm = T), na.rm = T) * 0.15
+  ymin <- -max(colSums(mat)) * 0.15
+  if (!is.finite(ymin)) {
+    ymin <- 0
+  }
 
   # draw barplot:
   bp <- barplot(mat,
@@ -360,11 +409,18 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
     col = c(legendcols, rep(NA, 1), rev(col)),
     legend = c(legendnames, "Cell", rev(names(col)))
   )
+  if (draw_svgs_instead_of_pdf) {
+    dev.off()
+  }
 
 
 
 
   ### proportion barplot:
+  if (draw_svgs_instead_of_pdf) {
+    svg(file = file.path(outputFolder, "spatialdecon_results_proportion_barplot.svg", fsep = .Platform$file.sep), width = pdf_width, height = pdf_height)
+  }
+
   layout(mat = matrix(c(1, 2, 3, 3), 2), widths = c(10, 3, 10, 3), heights = c(1, 8, 10))
   par(mar = c(0, 8.2, 0, 0.2))
   plot(p1$tree_col, labels = F, main = "", ylab = "", yaxt = "n")
@@ -373,7 +429,6 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
   # data to plot:
   mat <- res$prop_of_nontumor[cells.to.plot, p2$tree_col$order]
   mat <- replace(mat, is.na(mat), 0)
-  
   # infer scale of negative y-axis for annotation colorbars
   ymin <- -0.15
   # draw barplot:
@@ -411,6 +466,9 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
     col = c(legendcols, rep(NA, 1), rev(col)),
     legend = c(legendnames, "Cell", rev(names(col)))
   )
+  if (draw_svgs_instead_of_pdf) {
+    dev.off()
+  }
 
 
 
@@ -496,7 +554,9 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
       }
     } # end spaceplots
   }
-  dev.off()
+  if (!draw_svgs_instead_of_pdf) {
+    dev.off()
+  }
 }
 
 
