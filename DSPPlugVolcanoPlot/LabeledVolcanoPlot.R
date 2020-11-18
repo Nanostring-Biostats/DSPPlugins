@@ -59,7 +59,7 @@ font_family <- "mono"
 plot_width <- 7
 
 # Plot Height in inches
-plot_height <- "7"
+plot_height <- 7
 
 ####################### COLORING #########################
 # Specific target groups to color in the plot
@@ -252,24 +252,26 @@ testVariableFormats <- function(de=de_results){
                    label="Column names in given volcano plot tab delimited file do not match expected.")
   
   ############################### USER DEFINED VARIABLE CLASS CHECKS ###############################
-  numeric_variables <- c(n_genes, pval_thresh, fdr_thresh, fc_thresh, font_size, 
-                         plot_width, plot_height)
-  numeric_variable_names <- c("n_genes", "pval_thresh", "fdr_thresh", "fc_thresh", "font_size", 
+  numeric_variables <- c("n_genes", "pval_thresh", "fdr_thresh", "fc_thresh", "font_size", 
                               "plot_width", "plot_height")
   
-  character_variables <- c(plot_title, gene_list, target_groups)
-  character_variable_names <- c("plot_title", "gene_list", "target_groups")
+  character_variables <- c("plot_title", "gene_list", "target_groups")
   
   for(v in 1:length(numeric_variables)){
-    expectIdenticalClass(object=numeric_variables[v], 
-                         object_name=numeric_variable_names[v], 
-                         class_name="numeric")
+    if(!is.null(eval(parse(text = numeric_variables[v])))){
+      expectIdenticalClass(object=eval(parse(text = numeric_variables[v])), 
+                           object_name=numeric_variables[v], 
+                           class_name="numeric")
+    }
+  
   }
   
   for(v in 1:length(character_variables)){
-    expectIdenticalClass(object=character_variables[v], 
-                         object_name=character_variable_names[v], 
-                         class_name="character")
+    if(!is.null(eval(parse(text = character_variables[v])))){
+      expectIdenticalClass(object=eval(parse(text = character_variables[v])), 
+                           object_name=character_variables[v], 
+                           class_name="character")
+    }
   }
   
   # check that thresh_lines is a logical or NULL
