@@ -35,10 +35,10 @@ gene_list <- NULL #c("IL2RG", "GLUL", "SPIB", "C2")
 
 ####################### THRESHOLDS #######################
 # P-value threshold, default threshold over fdr_thresh
-pval_thresh <- NULL
+pval_thresh <- 0.05
 
 # FDR threshold, must set pval_thresh to NULL to use
-fdr_thresh <- 0.05
+fdr_thresh <- NULL
 
 # Fold Change threshold 
 fc_thresh <- 0.75
@@ -56,10 +56,10 @@ font_family <- "mono"
 
 ####################### PLOT SIZE ########################
 # Plot Width in inches
-plot_width <- 7
+plot_width <- 6
 
 # Plot Height in inches
-plot_height <- 7
+plot_height <- 4
 
 ####################### COLORING #########################
 # Specific target groups to color in the plot
@@ -116,7 +116,9 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder){
   ggsave(filename=paste0(plot_title, "_volcano_plot.", output_format),
          plot=gp,
          device=output_format,
-         path=outputFolder)
+         path=outputFolder,
+         height = plot_height,
+         width = plot_width)
 } 
 
 #' volcanoPlot
@@ -200,8 +202,8 @@ volcanoPlot <- function(de){
   }  
   
   # add gene labels to ggplot
-  gp <- gp + geom_text_repel(data=gene_labels, aes(label=Target.Name), 
-                             size=max(min(font_size*min(5/nrow(gene_labels), 5.5)), 3), force=5)
+  gp <- gp + geom_text_repel(data=gene_labels, aes(label=Target.Name), family=font_family,
+                             size=max(min(font_size*min(5/nrow(gene_labels), 5.5), 5.5), 3), force=5)
   
   return(gp)
 }
