@@ -80,6 +80,7 @@ color_options <- c("#3A6CA1", "#FFD861", "#CF4244", "#47BAB4",
 library(ggplot2)
 library(ggrepel)
 library(testthat)
+library(scales)
 library(stats)
 library(stringr)
 
@@ -117,8 +118,8 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder){
          plot=gp,
          device=output_format,
          path=outputFolder,
-         height = plot_height,
-         width = plot_width)
+         height=plot_height,
+         width=plot_width)
 } 
 
 #' volcanoPlot
@@ -132,16 +133,33 @@ volcanoPlot <- function(de){
   # determine highest x point to make volcano plot equal on both sides
   maxFC <- max(abs(de$Log2))
   
+  maxPval <- min(de$Pvalue)
+ 
+  # function to return pvalue on y axis rather than -log10(pvalue)
+  # copied from 360Report VolcanoPlot.R
+  revlog_trans <- function(base=exp(1))
+  {
+    trans <- function(x) -log(x, base)
+    inv <- function(x) base^(-x)
+    trans_new(name=paste0("revlog-", base), 
+              transform=trans, 
+              inverse=inv, 
+              breaks=log_breaks(base=base),
+              domain=c(1e-100, Inf))
+  }
+  
   # create basic volcano plot with correct formatting
-  gp <- ggplot(de, aes(x=Log2, y=X.log10.pvalue))+
+  gp <- ggplot(de, aes(x=Log2, y=Pvalue))+
     geom_point(color="grey60")+
-    labs(y="Significance, -log10(pval)", 
+    labs(y="Significance, Pvalue",
          x=paste(negative_label, "<-", "log2(FC)", "->", positive_label, sep=" "),
          title=plot_title)+
     theme(aspect.ratio=1, text=element_text(size=font_size, family=font_family))+
-    scale_x_continuous(limits=c(-maxFC, maxFC))
-    #scale_y_continuous(sec.axis=sec_axis(trans=~ 10^-., name="pval")) 
-    # attempt to put pval on a second y axis, 
+    scale_x_continuous(limits=c(-maxFC, maxFC))+
+    scale_y_continuous(trans=revlog_trans(base=10),
+                       labels=function(x) format(x, trim=TRUE, digits=4,
+                                                 scientific = ifelse(maxPval < 0.0001, TRUE, FALSE), 
+                                                 drop0trailing=TRUE))  
   
   # subset de to only include genes either in specified target groups or above pval/fdr threshold
   if(!is.null(target_groups)){
@@ -168,14 +186,14 @@ volcanoPlot <- function(de){
     }
     
     gene_coloring$Target_coloring <- ifelse(test=gene_coloring$Log2 < 0, 
-                                            yes=paste(label_thresh, negative_label, sep="\n"), 
-                                            no=paste(label_thresh, positive_label, sep="\n"))
+                                            yes=negative_label, 
+                                            no=positive_label)
     
-    color_label <- "Significance"
+    color_label <- paste("Significance:", label_thresh, sep="\n")
   }
   
   # add coloring to ggplot
-  gp <- gp + geom_point(data=gene_coloring, aes(x=Log2, y=X.log10.pvalue, color=Target_coloring))+
+  gp <- gp + geom_point(data=gene_coloring, aes(x=Log2, y=Pvalue, color=Target_coloring))+
     labs(color=color_label)+
     scale_color_manual(values=color_options)
   
@@ -186,11 +204,11 @@ volcanoPlot <- function(de){
     
     if(is.null(pval_thresh)){
       # fine closest FDR value to fdr_thresh and use that pvalue to add y axis cutoff line
-      gp <- gp + geom_hline(yintercept=-log10(mean(de$Pvalue[which(abs(de$FDR - fdr_thresh) == 
-                                                                       min(abs(de$FDR - fdr_thresh)))])), 
+      gp <- gp + geom_hline(yintercept=mean(de$Pvalue[which(abs(de$FDR - fdr_thresh) == 
+                                                              min(abs(de$FDR - fdr_thresh)))]), 
                             linetype="dotted")
     }else{
-      gp <- gp + geom_hline(yintercept=-log10(pval_thresh), linetype="dotted")
+      gp <- gp + geom_hline(yintercept=pval_thresh, linetype="dotted")
     }
   }
   
@@ -198,12 +216,13 @@ volcanoPlot <- function(de){
   if(!is.null(gene_list)){
     gene_labels <- subset(de, subset=Target.Name %in% gene_list)
   }else{
-    gene_labels <- de[head(order(abs(de$X.log10.pvalue), decreasing=TRUE), n=n_genes),]
+    gene_labels <- de[head(order(abs(de$Pvalue), decreasing=FALSE), n=n_genes),]
   }  
   
   # add gene labels to ggplot
-  gp <- gp + geom_text_repel(data=gene_labels, aes(label=Target.Name), family=font_family,
-                             size=max(min(font_size*min(5/nrow(gene_labels), 5.5), 5.5), 3), force=5)
+  gp <- gp + geom_text_repel(data=gene_labels, aes(x=Log2, y=Pvalue, label=Target.Name), 
+                             family=font_family, force=5,
+                             size=max(min(font_size*min(5/nrow(gene_labels), 5.5), 5.5), 3))
   
   return(gp)
 }
@@ -260,8 +279,8 @@ testVariableFormats <- function(de=de_results){
   character_variables <- c("plot_title", "gene_list", "target_groups")
   
   for(v in 1:length(numeric_variables)){
-    if(!is.null(eval(parse(text = numeric_variables[v])))){
-      expectIdenticalClass(object=eval(parse(text = numeric_variables[v])), 
+    if(!is.null(eval(parse(text=numeric_variables[v])))){
+      expectIdenticalClass(object=eval(parse(text=numeric_variables[v])), 
                            object_name=numeric_variables[v], 
                            class_name="numeric")
     }
@@ -269,8 +288,8 @@ testVariableFormats <- function(de=de_results){
   }
   
   for(v in 1:length(character_variables)){
-    if(!is.null(eval(parse(text = character_variables[v])))){
-      expectIdenticalClass(object=eval(parse(text = character_variables[v])), 
+    if(!is.null(eval(parse(text=character_variables[v])))){
+      expectIdenticalClass(object=eval(parse(text=character_variables[v])), 
                            object_name=character_variables[v], 
                            class_name="character")
     }
@@ -325,3 +344,4 @@ testVariableFormats <- function(de=de_results){
                        "given\n expected", paste(expected_output_format, collapse=", ")))
   }
 }
+
