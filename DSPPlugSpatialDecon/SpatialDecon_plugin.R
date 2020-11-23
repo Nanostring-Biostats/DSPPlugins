@@ -70,6 +70,7 @@ library(pheatmap)
 library(viridis)
 library(scales)
 library(openxlsx)
+library(dplyr)
 
 main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
 
@@ -77,7 +78,7 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
   dataset <- as.matrix(dataset)
 
   # access cell profile matrix file:
-  X <- as.matrix(read.csv(cell_profile_filename, header = T, row.names = 1))
+  X <- as.matrix(read.csv(cell_profile_filename, header = TRUE, row.names = 1))
 
 
   # ARGUMENT (hidden): define cell types to be added together in the final result:
@@ -88,18 +89,18 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
   merges <- list()
 
   # parse merges:
-  merges.full <- NULL
+  mergesFull <- NULL
   if (length(merges) > 0) {
     # initialize with 1:1 mapping:
-    merges.full <- list()
+    mergesFull <- list()
     for (name in colnames(X)) {
-      merges.full[[name]] <- name
+      mergesFull[[name]] <- name
     }
     # add merges:
-    for (name in names(merges0)) {
+    for (name in names(merges)) {
       # remove entries for cells specified by user and replace with their entries:
-      merges.full[merges[[name]]] <- NULL
-      merges.full[[name]] <- merges[[name]]
+      mergesFull[merges[[name]]] <- NULL
+      mergesFull[[name]] <- merges[[name]]
     }
   }
 
@@ -130,7 +131,15 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
   # format data for spatialdecon:
   norm <- dataset[targetAnnotations$TargetGUID, segmentAnnotations$segmentID]
   rownames(norm) <- targetAnnotations$TargetName
-  # colnames(norm) <- segmentAnnotations$segmentDisplayName
+  if (all(is.element(c("ScanName", "ROIName", "SegmentName"), colnames(segmentAnnotations)))) {
+    segmentAnnotations <- mutate(segmentAnnotations,
+      segmentDisplayName = paste(ScanName, ROIName, SegmentName, sep = " | ")
+    )
+    if (all(!duplicated(segmentAnnotations$segmentDisplayName))) {
+      colnames(norm) <- segmentAnnotations$segmentDisplayName
+      rownames(segmentAnnotations) <- segmentAnnotations$segmentDisplayName
+    }
+  }
 
   # calculate background:
   bg <- derive_GeoMx_background(
@@ -149,15 +158,8 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
     X = X,
     is_pure_tumor = is_pure_tumor,
     cell_counts = cell_counts,
-    cellmerges = merges.full
+    cellmerges = mergesFull
   )
-
-  # reverse decon:
-  # rdecon <- reverseDecon(
-  #  norm = norm,
-  #  beta = res$beta,
-  #  epsilon = NULL
-  # )
 
 
   #### write results files: ---------------------------------------------
@@ -212,13 +214,21 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
 
 
 
-  # reverse decon resids
-  # write.csv(rdecon$resids, file = file.path(outputFolder, "reverse_decon_residuals.csv", fsep = .Platform$file.sep))
+  # set to TRUE to save reverse decon results
+  if (FALSE) {
+    # reverse decon:
+    rdecon <- reverseDecon(
+      norm = norm,
+      beta = res$beta,
+      epsilon = NULL
+    )
+    write.csv(rdecon$resids, file = file.path(outputFolder, "reverse_decon_residuals.csv", fsep = .Platform$file.sep))
+    # reverse decon summary stats of gene dependency on cell mixing:
+    sumstats <- cbind(rdecon$cors, rdecon$resid.sd)
+    colnames(sumstats) <- c("cor w cell mixing", "residual SD from cell mixing")
+    write.csv(sumstats, file = file.path(outputFolder, "gene_dependence_on_cell_mixing.csv", fsep = .Platform$file.sep))
+  }
 
-  ## reverse decon summary stats of gene dependency on cell mixing:
-  # sumstats <- cbind(rdecon$cors, rdecon$resid.sd)
-  # colnames(sumstats) <- c("cor w cell mixing", "residual SD from cell mixing")
-  # write.csv(sumstats, file = file.path(outputFolder, "gene_dependence_on_cell_mixing.csv", fsep = .Platform$file.sep))
 
   #### results figures: ---------------------------------------------
 
@@ -244,7 +254,7 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
   }
 
   # show just the original cells, not tumor abundance estimates derived from the is.pure.tumor argument:
-  cells.to.plot <- intersect(rownames(res$beta), union(colnames(X), names(merges.full)))
+  cells.to.plot <- intersect(rownames(res$beta), union(colnames(X), names(mergesFull)))
 
   ## show only a subset of cells if specified:
   if (length(subset_of_cells_to_show) >= 2) {
@@ -272,6 +282,7 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
   p1 <- pheatmap(pmin(res$beta[cells.to.plot, ], thresh),
     col = colorRampPalette(hmcols)(100),
     fontsize_col = 4,
+    angle_col = 90,
     annotation_col = heatmapannot,
     annotation_colors = cols,
     legend_breaks = c(round(seq(0, thresh, length.out = 5))[-5], thresh),
@@ -294,6 +305,7 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
   p3 <- pheatmap(mat[cells.to.plot, ],
     col = colorRampPalette(hmcols)(100),
     fontsize_col = 4,
+    angle_col = 90,
     annotation_col = heatmapannot,
     annotation_colors = cols,
     legend_breaks = c(round(seq(0, 1, length.out = 5), 2)[-5], 1),
@@ -313,6 +325,7 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
   p2 <- pheatmap(props,
     col = colorRampPalette(hmcols)(100),
     fontsize_col = 4,
+    angle_col = 90,
     annotation_col = heatmapannot,
     annotation_colors = cols,
     legend_breaks = round(seq(0, max(props) * 0.99, length.out = 5), 2),
@@ -474,8 +487,9 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
 
 
 
-  # spaceplots: draw separately for each cell:
+  # set to TRUE to draw a "spaceplot" for each cell type (showing abundace of the cell in space)
   if (FALSE) {
+    # spaceplots: draw separately for each cell:
     # ARGUMENTS: define which variables specify xy coordinates:
     xpositionname <- "ROICoordinateX"
     ypositionname <- "ROICoordinateY"
