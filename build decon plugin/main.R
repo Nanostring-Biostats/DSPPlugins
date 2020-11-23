@@ -70,6 +70,7 @@ library(pheatmap)
 library(viridis)
 library(scales)
 library(openxlsx)
+library(dplyr)
 
 main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
 
@@ -130,8 +131,15 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
   # format data for spatialdecon:
   norm <- dataset[targetAnnotations$TargetGUID, segmentAnnotations$segmentID]
   rownames(norm) <- targetAnnotations$TargetName
-  # colnames(norm) <- segmentAnnotations$segmentDisplayName
-
+  if (all(is.element(c("ScanName", "ROIName", "SegmentName"), colnames(segmentAnnotations)))) {
+    segmentAnnotations <- mutate(segmentAnnotations, 
+                               segmentDisplayName = paste(ScanName, ROIName, SegmentName, sep=" | ")) 
+    if (all(!duplicated(segmentAnnotations$segmentDisplayName))) {
+      colnames(norm) <- segmentAnnotations$segmentDisplayName
+      rownames(segmentAnnotations) <- segmentAnnotations$segmentDisplayName
+    }
+  }
+  
   # calculate background:
   bg <- derive_GeoMx_background(
     norm = norm,
@@ -273,7 +281,7 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
   p1 <- pheatmap(pmin(res$beta[cells.to.plot, ], thresh),
     col = colorRampPalette(hmcols)(100),
     fontsize_col = 4,
-    angle_col = 45,
+    angle_col= 90,
     annotation_col = heatmapannot,
     annotation_colors = cols,
     legend_breaks = c(round(seq(0, thresh, length.out = 5))[-5], thresh),
@@ -296,7 +304,7 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
   p3 <- pheatmap(mat[cells.to.plot, ],
     col = colorRampPalette(hmcols)(100),
     fontsize_col = 4,
-    angle_col = 45,
+    angle_col= 90,
     annotation_col = heatmapannot,
     annotation_colors = cols,
     legend_breaks = c(round(seq(0, 1, length.out = 5), 2)[-5], 1),
@@ -316,7 +324,7 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
   p2 <- pheatmap(props,
     col = colorRampPalette(hmcols)(100),
     fontsize_col = 4,
-    angle_col = 45,
+    angle_col= 90,
     annotation_col = heatmapannot,
     annotation_colors = cols,
     legend_breaks = round(seq(0, max(props) * 0.99, length.out = 5), 2),
