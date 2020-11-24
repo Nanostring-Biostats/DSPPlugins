@@ -12,7 +12,7 @@ de_results_filename <- "VOLCANO PLOT.txt"
 
 # output format for volcano plot, 
 #   options include: png, jpg, tiff, svg
-output_format <- "png"
+output_format <- "jpg"
 
 ######################## LABELING ######################## 
 # Volcano Plot Title
@@ -34,11 +34,11 @@ n_genes <- 25
 gene_list <- NULL #c("IL2RG", "GLUL", "SPIB", "C2")
 
 ####################### THRESHOLDS #######################
-# P-value threshold, default threshold over fdr_thresh
-pval_thresh <- 0.05
+# P-value threshold, must set fdr_thresh to NULL to use
+pval_thresh <- NULL
 
-# FDR threshold, must set pval_thresh to NULL to use
-fdr_thresh <- NULL
+# FDR threshold, default threshold over pval_thresh
+fdr_thresh <- 0.01
 
 # Fold Change threshold 
 fc_thresh <- 0.75
@@ -52,7 +52,7 @@ font_size <- 12
 
 # Font Family
 #   options include: serif, sans, mono
-font_family <- "mono"
+font_family <- "sans"
 
 ####################### PLOT SIZE ########################
 # Plot Width in inches
@@ -99,10 +99,19 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder){
     if(length(header) > 0){
       colnames(de_results) <- de_results[header, ]
       de_results <- de_results[-c(1:header), ]
+      
+      colnames(de_results) <- gsub(pattern="\\W", replacement=".", colnames(de_results))
+      if(any(startsWith(colnames(de_results), prefix="."))){
+        w2kp <- which(startsWith(colnames(de_results), prefix="."))
+        colnames(de_results)[w2kp] <- paste0("X", colnames(de_results)[w2kp])
+      }
     }else{
       fail(message="Too many rows were removed from VOLCANO PLOT.xlsx before running script. 
            The row with Target Name in the first column must be kept.")
     }
+    
+    de_results$Log2 <- as.numeric(de_results$Log2)
+    de_results$Pvalue <- as.numeric(de_results$Pvalue)
   }
   
   # test for valid input variables
@@ -112,14 +121,21 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder){
   de_results$FDR <- p.adjust(de_results$Pvalue, method="fdr")
   
   # create volcano plot
-  gp <- volcanoPlot(de=de_results)
+  returns <- volcanoPlot(de=de_results)
   
   ggsave(filename=paste0(plot_title, "_volcano_plot.", output_format),
-         plot=gp,
+         plot=returns$plot,
          device=output_format,
          path=outputFolder,
          height=plot_height,
          width=plot_width)
+  
+  
+  write.table(x=returns$gene_labels, 
+              file=file.path(outputFolder,
+                               paste0(plot_title, "_labeled_genes.txt"), 
+                               fsep=.Platform$file.sep),
+              sep="\t", quote=FALSE, row.names=FALSE)
 } 
 
 #' volcanoPlot
@@ -154,11 +170,13 @@ volcanoPlot <- function(de){
     labs(y="Significance, Pvalue",
          x=paste(negative_label, "<-", "log2(FC)", "->", positive_label, sep=" "),
          title=plot_title)+
-    theme(aspect.ratio=1, text=element_text(size=font_size, family=font_family))+
+    theme(text=element_text(size=font_size, family=font_family), 
+          axis.line=element_line(size=1))+
+    theme_bw()+
     scale_x_continuous(limits=c(-maxFC, maxFC))+
     scale_y_continuous(trans=revlog_trans(base=10),
                        labels=function(x) format(x, trim=TRUE, digits=4,
-                                                 scientific = ifelse(maxPval < 0.0001, TRUE, FALSE), 
+                                                 scientific=ifelse(maxPval < 0.0001, TRUE, FALSE), 
                                                  drop0trailing=TRUE))  
   
   # subset de to only include genes either in specified target groups or above pval/fdr threshold
@@ -177,12 +195,12 @@ volcanoPlot <- function(de){
     
     color_label <- "Target Group\nMembership"
   }else{
-    if(is.null(pval_thresh)){
-      gene_coloring <- de[which(de$FDR < fdr_thresh),]
-      label_thresh <- paste("FDR <", fdr_thresh)
-    }else{
+    if(is.null(fdr_thresh)){
       gene_coloring <- de[which(de$Pvalue < pval_thresh),]
       label_thresh <- paste("pval <", pval_thresh)
+    }else{
+      gene_coloring <- de[which(de$FDR < fdr_thresh),]
+      label_thresh <- paste("FDR <", fdr_thresh)
     }
     
     gene_coloring$Target_coloring <- ifelse(test=gene_coloring$Log2 < 0, 
@@ -203,12 +221,13 @@ volcanoPlot <- function(de){
       geom_vline(xintercept=-fc_thresh, linetype="dotted")
     
     if(is.null(pval_thresh)){
-      # fine closest FDR value to fdr_thresh and use that pvalue to add y axis cutoff line
-      gp <- gp + geom_hline(yintercept=mean(de$Pvalue[which(abs(de$FDR - fdr_thresh) == 
-                                                              min(abs(de$FDR - fdr_thresh)))]), 
-                            linetype="dotted")
+      # find closest FDR value to fdr_thresh and use that pvalue to add y axis cutoff line
+      fdr_pval <- mean(de$Pvalue[which(abs(de$FDR - fdr_thresh) == min(abs(de$FDR - fdr_thresh)))])
+      gp <- gp + geom_hline(yintercept=fdr_pval, linetype="dotted")
+        #geom_text(aes(-maxFC, fdr_pval, label=paste("FDR =", fdr_thresh), vjust=1, hjust=-1), size=3)
     }else{
       gp <- gp + geom_hline(yintercept=pval_thresh, linetype="dotted")
+        #geom_text(aes(maxFC, pval_thresh, label=paste("FDR =", pval_thresh), vjust=1, hjust=1), size=3)
     }
   }
   
@@ -223,8 +242,16 @@ volcanoPlot <- function(de){
   gp <- gp + geom_text_repel(data=gene_labels, aes(x=Log2, y=Pvalue, label=Target.Name), 
                              family=font_family, force=5,
                              size=max(min(font_size*min(5/nrow(gene_labels), 5.5), 5.5), 3))
+
+  colnames(gene_labels) <- c("Target tag", "Target group memership/s", "Target Name", "Log2", 
+                             "Pvalue", "Adjusted pvalue", "-log10 pvalue", "-log10 adjusted pvalue",
+                             "FDR")
   
-  return(gp)
+  
+  returns <- list(gp, gene_labels)
+  names(returns) <- c("plot", "gene_labels")
+  
+  return(returns)
 }
 
 #' areColors
