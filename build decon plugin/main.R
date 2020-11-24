@@ -56,7 +56,7 @@ hmcols <- c("white", "darkblue")
 heatmaptruncationlimit <- NULL
 pdf_width <- 12
 pdf_height <- 7
-plot_filetype <- "pdf"  # could also be "svg" "png" 
+plot_filetype <- "pdf" # could also be "svg" "png"
 subset_of_cells_to_show <- NULL
 
 
@@ -277,16 +277,22 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
   }
 
   if (plot_filetype == "svg") {
-    svg(file = file.path(outputFolder, "spatialdecon_results_abundance_heatmap.svg", fsep = .Platform$file.sep), 
-        width = pdf_width, height = pdf_height)
+    svg(
+      file = file.path(outputFolder, "spatialdecon_results_abundance_heatmap.svg", fsep = .Platform$file.sep),
+      width = pdf_width, height = pdf_height
+    )
   }
   if (plot_filetype == "png") {
-    png(file = file.path(outputFolder, "spatialdecon_results_abundance_heatmap.png", fsep = .Platform$file.sep), 
-        width = pdf_width, height = pdf_height, units = "in", res = 2000)
+    png(
+      file = file.path(outputFolder, "spatialdecon_results_abundance_heatmap.png", fsep = .Platform$file.sep),
+      width = pdf_width, height = pdf_height, units = "in", res = 2000
+    )
   }
   if (plot_filetype == "tiff") {
-    tiff(file = file.path(outputFolder, "spatialdecon_results_abundance_heatmap.tiff", fsep = .Platform$file.sep), 
-         width = pdf_width, height = pdf_height, units = "in", res = 150)
+    tiff(
+      file = file.path(outputFolder, "spatialdecon_results_abundance_heatmap.tiff", fsep = .Platform$file.sep),
+      width = pdf_width, height = pdf_height, units = "in", res = 150
+    )
   }
   p1 <- pheatmap(pmin(res$beta[cells.to.plot, ], thresh),
     col = colorRampPalette(hmcols)(100),
@@ -310,16 +316,22 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
 
 
   if (plot_filetype == "svg") {
-    svg(file = file.path(outputFolder, "spatialdecon_results_scaled_abundance_heatmap.svg", fsep = .Platform$file.sep), 
-        width = pdf_width, height = pdf_height)
+    svg(
+      file = file.path(outputFolder, "spatialdecon_results_scaled_abundance_heatmap.svg", fsep = .Platform$file.sep),
+      width = pdf_width, height = pdf_height
+    )
   }
   if (plot_filetype == "png") {
-    png(file = file.path(outputFolder, "spatialdecon_results_scaled_abundance_heatmap.png", fsep = .Platform$file.sep), 
-        width = pdf_width, height = pdf_height, units = "in", res = 2000)
+    png(
+      file = file.path(outputFolder, "spatialdecon_results_scaled_abundance_heatmap.png", fsep = .Platform$file.sep),
+      width = pdf_width, height = pdf_height, units = "in", res = 2000
+    )
   }
   if (plot_filetype == "tiff") {
-    tiff(file = file.path(outputFolder, "spatialdecon_results_scaled_abundance_heatmap.tiff", fsep = .Platform$file.sep), 
-         width = pdf_width, height = pdf_height, units = "in", res = 150)
+    tiff(
+      file = file.path(outputFolder, "spatialdecon_results_scaled_abundance_heatmap.tiff", fsep = .Platform$file.sep),
+      width = pdf_width, height = pdf_height, units = "in", res = 150
+    )
   }
   p3 <- pheatmap(mat[cells.to.plot, ],
     col = colorRampPalette(hmcols)(100),
@@ -339,16 +351,22 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
   props <- replace(res$prop_of_nontumor[cells.to.plot, ], is.na(res$prop_of_nontumor[cells.to.plot, ]), 0)
 
   if (plot_filetype == "svg") {
-    svg(file = file.path(outputFolder, "spatialdecon_results_proportions_heatmap.svg", fsep = .Platform$file.sep), 
-        width = pdf_width, height = pdf_height)
+    svg(
+      file = file.path(outputFolder, "spatialdecon_results_proportions_heatmap.svg", fsep = .Platform$file.sep),
+      width = pdf_width, height = pdf_height
+    )
   }
   if (plot_filetype == "png") {
-    png(file = file.path(outputFolder, "spatialdecon_results_proportions_heatmap.png", fsep = .Platform$file.sep), 
-        width = pdf_width, height = pdf_height, units = "in", res = 2000)
+    png(
+      file = file.path(outputFolder, "spatialdecon_results_proportions_heatmap.png", fsep = .Platform$file.sep),
+      width = pdf_width, height = pdf_height, units = "in", res = 2000
+    )
   }
   if (plot_filetype == "tiff") {
-    tiff(file = file.path(outputFolder, "spatialdecon_results_proportions_heatmap.tiff", fsep = .Platform$file.sep), 
-         width = pdf_width, height = pdf_height, units = "in", res = 150)
+    tiff(
+      file = file.path(outputFolder, "spatialdecon_results_proportions_heatmap.tiff", fsep = .Platform$file.sep),
+      width = pdf_width, height = pdf_height, units = "in", res = 150
+    )
   }
   p2 <- pheatmap(props,
     col = colorRampPalette(hmcols)(100),
@@ -400,18 +418,24 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
   ### abundance barplot:
 
   if (plot_filetype == "svg") {
-    svg(file = file.path(outputFolder, "spatialdecon_results_abundance_barplot.svg", fsep = .Platform$file.sep), 
-        width = pdf_width, height = pdf_height)
+    svg(
+      file = file.path(outputFolder, "spatialdecon_results_abundance_barplot.svg", fsep = .Platform$file.sep),
+      width = pdf_width, height = pdf_height
+    )
   }
   if (plot_filetype == "png") {
-    png(file = file.path(outputFolder, "spatialdecon_results_abundance_barplot.png", fsep = .Platform$file.sep), 
-        width = pdf_width, height = pdf_height, units = "in", res = 2000)
+    png(
+      file = file.path(outputFolder, "spatialdecon_results_abundance_barplot.png", fsep = .Platform$file.sep),
+      width = pdf_width, height = pdf_height, units = "in", res = 2000
+    )
   }
   if (plot_filetype == "tiff") {
-    tiff(file = file.path(outputFolder, "spatialdecon_results_abundance_barplot.tiff", fsep = .Platform$file.sep), 
-         width = pdf_width, height = pdf_height, units = "in", res = 150)
+    tiff(
+      file = file.path(outputFolder, "spatialdecon_results_abundance_barplot.tiff", fsep = .Platform$file.sep),
+      width = pdf_width, height = pdf_height, units = "in", res = 150
+    )
   }
-  
+
   layout(mat = matrix(c(1, 2, 3, 3), 2), widths = c(10, 3, 10, 3), heights = c(1, 8, 10))
   par(mar = c(0, 8.2, 0, 0.2))
   plot(p1$tree_col, labels = F, main = "", ylab = "", yaxt = "n")
@@ -469,18 +493,24 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
 
   ### proportion barplot:
   if (plot_filetype == "svg") {
-    svg(file = file.path(outputFolder, "spatialdecon_results_proportion_barplot.svg", fsep = .Platform$file.sep), 
-        width = pdf_width, height = pdf_height)
+    svg(
+      file = file.path(outputFolder, "spatialdecon_results_proportion_barplot.svg", fsep = .Platform$file.sep),
+      width = pdf_width, height = pdf_height
+    )
   }
   if (plot_filetype == "png") {
-    png(file = file.path(outputFolder, "spatialdecon_results_proportion_barplot.png", fsep = .Platform$file.sep), 
-        width = pdf_width, height = pdf_height, units = "in", res = 2000)
+    png(
+      file = file.path(outputFolder, "spatialdecon_results_proportion_barplot.png", fsep = .Platform$file.sep),
+      width = pdf_width, height = pdf_height, units = "in", res = 2000
+    )
   }
   if (plot_filetype == "tiff") {
-    tiff(file = file.path(outputFolder, "spatialdecon_results_proportion_barplot.tiff", fsep = .Platform$file.sep), 
-         width = pdf_width, height = pdf_height, units = "in", res = 150)
+    tiff(
+      file = file.path(outputFolder, "spatialdecon_results_proportion_barplot.tiff", fsep = .Platform$file.sep),
+      width = pdf_width, height = pdf_height, units = "in", res = 150
+    )
   }
-  
+
 
   layout(mat = matrix(c(1, 2, 3, 3), 2), widths = c(10, 3, 10, 3), heights = c(1, 8, 10))
   par(mar = c(0, 8.2, 0, 0.2))
