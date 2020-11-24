@@ -647,7 +647,7 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
       }
     } # end spaceplots
   }
-  if (!draw_svgs_instead_of_pdf) {
+  if (plot_filetype == "pdf") {
     dev.off()
   }
 }
