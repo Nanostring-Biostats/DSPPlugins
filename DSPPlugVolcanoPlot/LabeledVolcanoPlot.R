@@ -53,6 +53,9 @@ label_fc <- FALSE
 # Font Size
 font_size <- 8
 
+# Label Font Size
+label_size <- 4
+
 # Font Family
 #   options include: serif, sans, mono
 font_family <- "sans"
@@ -100,6 +103,11 @@ library(stringr)
 # main function called by DSP-DA:
 main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder){
   
+  if(!file.exists(de_results_filename)){
+    fail(message="Given volcano plot results file does not exist. 
+         Please check file name and if the volcano plot file was uploaded to DSPDA")
+  }
+  
   # access volcano plot file:
   de_results <- read.table(de_results_filename, header=TRUE, sep="\t", stringsAsFactors=FALSE)
   
@@ -115,8 +123,8 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder){
       
       colnames(de_results) <- gsub(pattern="\\W", replacement=".", colnames(de_results))
       if(any(startsWith(colnames(de_results), prefix="."))){
-        w2kp <- which(startsWith(colnames(de_results), prefix="."))
-        colnames(de_results)[w2kp] <- paste0("X", colnames(de_results)[w2kp])
+        starts_with_num <- which(startsWith(colnames(de_results), prefix="."))
+        colnames(de_results)[starts_with_num] <- paste0("X", colnames(de_results)[starts_with_num])
       }
     }else{
       fail(message="Too many rows were removed from VOLCANO PLOT.xlsx before running script. 
@@ -134,30 +142,30 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder){
   de_results$FDR <- p.adjust(de_results$Pvalue, method="fdr")
   
   # create volcano plot
-  returns <- volcanoPlot(de=de_results)
+  volcanoPlot_results <- plotVolcano(de=de_results)
   
   ggsave(filename=paste0("volcano_plot_", plot_title, ".", output_format),
-         plot=returns$plot,
+         plot=volcanoPlot_results$plot,
          device=output_format,
          path=outputFolder,
          height=plot_height,
          width=plot_width)
   
   
-  write.table(x=returns$gene_labels, 
+  write.table(x=volcanoPlot_results$gene_labels, 
               file=file.path(outputFolder,
                                paste0("labeled_genes_", plot_title, ".txt"), 
                                fsep=.Platform$file.sep),
               sep="\t", quote=FALSE, row.names=FALSE)
 } 
 
-#' volcanoPlot
+#' plotVolcano
 #'
 #' create volcano plot figure using user input variables and DE results from DSPDA
 #' @param de data frame of DE results from DSPDA
-#' @return gp ggplot of volcano plot
+#' @return ggFigure ggplot of volcano plot
 #' @export
-volcanoPlot <- function(de){
+plotVolcano <- function(de){
   
   # determine highest x point to make volcano plot equal on both sides
   maxFC <- max(abs(de$Log2))
@@ -168,22 +176,9 @@ volcanoPlot <- function(de){
   if(!is.null(fdr_thresh)){
     fdr_pval <- mean(de$Pvalue[which(abs(de$FDR - fdr_thresh) == min(abs(de$FDR - fdr_thresh)))])
   }
- 
-  # function to return pvalue on y axis rather than -log10(pvalue)
-  # copied from 360Report VolcanoPlot.R
-  revlog_trans <- function(base=exp(1))
-  {
-    trans <- function(x) -log(x, base)
-    inv <- function(x) base^(-x)
-    trans_new(name=paste0("revlog-", base), 
-              transform=trans, 
-              inverse=inv, 
-              breaks=log_breaks(base=base),
-              domain=c(1e-100, Inf))
-  }
   
   # create basic volcano plot with correct formatting
-  gp <- ggplot(de, aes(x=Log2, y=Pvalue))+
+  ggFigure <- ggplot(de, aes(x=Log2, y=Pvalue))+
     geom_point(color=default_color)+
     labs(y="Pvalue",
          x=paste(negative_label, "<-", "log2(FC)", "->", positive_label, sep=" "),
@@ -193,13 +188,13 @@ volcanoPlot <- function(de){
     scale_x_continuous(limits=c(-maxFC, maxFC))
   
     # this makes for easier testing if not running in DSPDA, will flip yaxis of graph
-    # scale_y_continuous(trans=revlog_trans(base=10),
+    # scale_y_continuous(trans=change_axis_revlog_trans(base=10),
     #                    labels=function(x) format(x, trim=TRUE, digits=4,
     #                                              scientific=ifelse(maxPval < 0.0001, TRUE, FALSE), 
     #                                              drop0trailing=TRUE)) 
   
   if(show_legend == FALSE){
-    gp <- gp + theme(legend.position="none")
+    ggFigure <- ggFigure + theme(legend.position="none")
   }
   
   # subset de to only include genes either in specified target groups or above pval/fdr threshold
@@ -238,7 +233,7 @@ volcanoPlot <- function(de){
                                               no=positive_label)
       
       # label points as above pval or FDR threshold
-      gene_coloring$Target_coloring <- ifelse(test=gene_coloring$Pvalue > high_thresh, 
+      gene_coloring$Target_coloring <- ifelse(test=gene_coloring$Pvalue >= high_thresh, 
                                               yes=paste(label_thresh_low, gene_coloring$Target_coloring), 
                                               no=paste(label_thresh_high, gene_coloring$Target_coloring))
       
@@ -278,7 +273,7 @@ volcanoPlot <- function(de){
   names(color_options)[length(color_options)] <- "Not Specified"
   
   # add coloring to ggplot
-  gp <- gp + geom_point(data=gene_coloring, aes(x=Log2, y=Pvalue, color=Target_coloring))+
+  ggFigure <- ggFigure + geom_point(data=gene_coloring, aes(x=Log2, y=Pvalue, color=Target_coloring))+
     labs(color=color_label)+
     scale_color_manual(values=color_options)
   
@@ -293,17 +288,17 @@ volcanoPlot <- function(de){
   
   # add threshold lines if thresholds are not NULL
   if(!is.null(fc_thresh)){
-    gp <- gp + geom_vline(xintercept=fc_thresh, linetype="dotted")+
+    ggFigure <- ggFigure + geom_vline(xintercept=fc_thresh, linetype="dotted")+
       geom_vline(xintercept=-fc_thresh, linetype="dotted")+
       annotate("text", x=fc_thresh+0.35, y=1,family=font_family, size=font_size/3,
                label=paste0("FC=", round(2^fc_thresh, digits=2)))
   }
   if(!is.null(pval_thresh)){
-    gp <- gp + geom_hline(yintercept=pval_thresh, linetype="dotted")
+    ggFigure <- ggFigure + geom_hline(yintercept=pval_thresh, linetype="dotted")
     yaxis <- rbind(yaxis, c(pval_thresh, paste0('pval=',pval_thresh)))
   }
   if(!is.null(fdr_thresh)){
-    gp <- gp + geom_hline(yintercept=fdr_pval, linetype="dotted")
+    ggFigure <- ggFigure + geom_hline(yintercept=fdr_pval, linetype="dotted")
     yaxis <- rbind(yaxis, c(fdr_pval, paste0('FDR=',fdr_thresh)))
   }
   
@@ -328,38 +323,38 @@ volcanoPlot <- function(de){
   }  
   
   # add gene labels to ggplot
-  gp <- gp + geom_text_repel(data=gene_labels, aes(x=Log2, y=Pvalue, label=Target.Name), 
+  ggFigure <- ggFigure + geom_text_repel(data=gene_labels, aes(x=Log2, y=Pvalue, label=Target.Name), 
                              family=font_family, force=5, fontface="bold", min.segment.length=0.1,
-                             size=max(min(font_size*min(5/nrow(gene_labels), 5.5), 4), 3))
+                             size=label_size)
   
   # add y axis labels 
-  gp <- gp + scale_y_continuous(trans=revlog_trans(base=10), breaks=as.numeric(yaxis$brk),
+  ggFigure <- ggFigure + scale_y_continuous(trans=change_axis_revlog_trans(base=10), breaks=as.numeric(yaxis$brk),
                           labels=yaxis$label)
 
   colnames(gene_labels) <- c("Target tag", "Target group memership/s", "Target Name", "Log2", 
                              "Pvalue", "Adjusted pvalue", "-log10 pvalue", "-log10 adjusted pvalue",
                              "FDR")
   
-  returns <- list(gp, gene_labels)
-  names(returns) <- c("plot", "gene_labels")
+  volcanoPlot <- list(ggFigure, gene_labels)
+  names(volcanoPlot) <- c("plot", "gene_labels")
   
-  return(returns)
+  return(volcanoPlot)
 }
 
-#' areColors
+#' testAreColors
 #'
 #' checks if all colors in a vector are valid color names
 #' @param colors color names 
 #' @return TRUE/FALSE statement on valid color status
 #' @export
-areColors <- function(colors) {
+testAreColors <- function(colors) {
   return(sapply(colors, function(X) {
     tryCatch(is.matrix(col2rgb(X)), 
              error=function(e) FALSE)
   }))
 }
 
-#' expectIdenticalClass
+#' testIdenticalClass
 #'
 #' raises error if given object is not the assumed variable class
 #' @param object object to determine variable class
@@ -367,7 +362,7 @@ areColors <- function(colors) {
 #' @param class_name expected variable class
 #' @return None, errors out if class is not expected
 #' @export
-expectIdenticalClass <- function(object, object_name, class_name){
+testIdenticalClass <- function(object, object_name, class_name){
   expect_identical(object=class(object), expected=class_name, 
                    label=paste(object_name, "variable must be",
                                class_name,"\n You've supplied a", class(object)))
@@ -386,20 +381,34 @@ testVariableFormats <- function(de=de_results){
                           "Pvalue", "Adjusted.pvalue", "X.log10.pvalue", "X.log10.adjusted.pvalue")
   
   expect_identical(object=ncol(de), expected=length(expected_col_names),
-                   label="Number of columns in given volcano plot tab delimited file do not match expected. Make sure file is tab delimited")
+                   label="Number of columns in given volcano plot tab delimited file do not match expected. 
+                   Make sure file is tab delimited")
   
   expect_identical(object=colnames(de), expected=expected_col_names, 
                    label="Column names in given volcano plot tab delimited file do not match expected.")
   
-  ############################### USER DEFINED VARIABLE CLASS CHECKS ###############################
-  numeric_variables <- c("n_genes", "pval_thresh", "fdr_thresh", "fc_thresh", "font_size", 
-                              "plot_width", "plot_height")
+  # check that all target_groups have at least one gene if not NULL 
+  if(!is.null(target_groups)){
+    invisible(lapply(X=target_groups, FUN=function(x){
+      genes_in_group <- grep(x=de$Target.group.membership.s, pattern=x)
+      if(length(genes_in_group) == 0){
+        fail(message=paste(x, "is not a valid probe group. Please check spelling or remove from target_groups before continuing"))
+      }
+    }))
+  }
   
-  character_variables <- c("plot_title", "gene_list", "target_groups")
+  ############################### USER DEFINED VARIABLE CLASS CHECKS ###############################
+  numeric_variables <- c("n_genes", "pval_thresh", "fdr_thresh", "fc_thresh", 
+                         "font_size", "label_size", "plot_width", "plot_height")
+  
+  character_variables <- c("plot_title", "gene_list", "target_groups", 
+                           "negative_label", "positive_label")
+  
+  logical_variables <- c("show_legend", "label_fc")
   
   for(v in 1:length(numeric_variables)){
     if(!is.null(eval(parse(text=numeric_variables[v])))){
-      expectIdenticalClass(object=eval(parse(text=numeric_variables[v])), 
+      testIdenticalClass(object=eval(parse(text=numeric_variables[v])), 
                            object_name=numeric_variables[v], 
                            class_name="numeric")
     }
@@ -408,20 +417,30 @@ testVariableFormats <- function(de=de_results){
   
   for(v in 1:length(character_variables)){
     if(!is.null(eval(parse(text=character_variables[v])))){
-      expectIdenticalClass(object=eval(parse(text=character_variables[v])), 
+      testIdenticalClass(object=eval(parse(text=character_variables[v])), 
                            object_name=character_variables[v], 
                            class_name="character")
     }
   }
   
+  for(v in 1:length(logical_variables)){
+    if(!is.null(eval(parse(text=logical_variables[v])))){
+      testIdenticalClass(object=eval(parse(text=logical_variables[v])), 
+                         object_name=logical_variables[v], 
+                         class_name="logical")
+    }
+  }
+  
   # check that either n_genes or gene_list is not NULL
   if(is.null(gene_list) & is.null(n_genes)){
-    fail(message="Either n_genes or gene_list must not be NULL \n both n_genes and gene_list are currently NULL")
+    fail(message="Either n_genes or gene_list must not be NULL
+         both n_genes and gene_list are currently NULL")
   }
   
   # check that either pval_thresh or fdr_thresh is not NULL
   if(is.null(pval_thresh) & is.null(fdr_thresh)){
-    fail(message="Either fdr_thresh or pval_thresh must not be NULL \n both fdr_thresh and pval_thresh are currently NULL")
+    fail(message="Either fdr_thresh or pval_thresh must not be NULL
+         both fdr_thresh and pval_thresh are currently NULL")
   }
   
   # check that gene_list only contains genes in de results
@@ -440,9 +459,19 @@ testVariableFormats <- function(de=de_results){
                        paste(allowed_fonts, collapse=", ")))
   }
   
+  # check that default_color is an allowable color
+  if(!testAreColors(colors=default_color)){
+    fail(message=paste(paste(default_color, collapse=", "), "is not a valid color"))
+  }
+  
+  # check that fc_color is an allowable color
+  if(!testAreColors(colors=fc_color)){
+    fail(message=paste(paste(fc_color, collapse=", "), "is not a valid color"))
+  }
+  
   # check that color_options are all allowable colors
-  if(!all(areColors(colors=color_options))){
-    error_colors <- color_options[which(!areColors(colors=color_options))]
+  if(!all(testAreColors(colors=color_options))){
+    error_colors <- color_options[which(!testAreColors(colors=color_options))]
     fail(message=paste(paste(error_colors, collapse=", "), "is/are not valid color(s)"))
   }
   
@@ -457,5 +486,23 @@ testVariableFormats <- function(de=de_results){
     fail(message=paste("Output format not in expected list of formats.\n", output_format, 
                        "given\n expected", paste(expected_output_format, collapse=", ")))
   }
+}
+
+#' change_axis_revlog_trans
+#'
+#' reverse log transform axis; used to return pvalue rather than -log10(pvalue) on yaxis
+#' @param base base in which logs are computed
+#' @return revlog_trans reverse log transformation
+#' @export
+change_axis_revlog_trans <- function(base=exp(1)){
+  trans <- function(x) -log(x, base)
+  inv <- function(x) base^(-x)
+  revlog_trans <- trans_new(name=paste0("revlog-", base), 
+            transform=trans, 
+            inverse=inv, 
+            breaks=log_breaks(base=base),
+            domain=c(1e-100, Inf))
+  
+  return(revlog_trans)
 }
 
