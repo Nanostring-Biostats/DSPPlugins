@@ -54,15 +54,15 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
   
   pdf(file = file.path(outputFolder, "GeneralHeatmap.pdf", fsep = .Platform$file.sep), width = width, height = height)
   draw_general_heatmap(data = targetCountMatrix,
-                       heatmap_colors = NULL,
-                       scale_cutoff = 3,
+                       heatmap_colors = heatmap_colors,
+                       scale_cutoff = scale_cutoff,
                        annotations = segmentAnnotations,
-                       annotations_to_show = c("ROIName"),
-                       annotation_colors = NULL,
-                       sort_by = NULL,
-                       sort_order = NULL,
-                       clustering_distance = "euclidean",
-                       scale = "row")
+                       annotations_to_show = annotations_to_show,
+                       annotation_colors = annotation_colors,
+                       sort_by = sort_by,
+                       sort_order = sort_order,
+                       clustering_distance = clustering_distance,
+                       scale = scale)
   dev.off()
 }
 
