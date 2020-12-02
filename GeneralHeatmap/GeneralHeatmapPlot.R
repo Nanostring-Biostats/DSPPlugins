@@ -53,7 +53,7 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
   
   
   pdf(file = file.path(outputFolder, "GeneralHeatmap.pdf", fsep = .Platform$file.sep), width = width, height = height)
-  p=draw_general_heatmap(data = targetCountMatrix[1:50,],
+  draw_general_heatmap(data = targetCountMatrix,
                        heatmap_colors = NULL,
                        scale_cutoff = 3,
                        annotations = segmentAnnotations,
