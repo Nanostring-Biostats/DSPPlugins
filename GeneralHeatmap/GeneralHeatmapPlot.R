@@ -13,14 +13,14 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
   # users can modify following arguments - currently set to defaults
   
   # supervised/unsupervised ROIs option
-  sort_by = NULL# annotation to use for clustering (supervised), if NULL, then unsupervised clustering
+  sort_by = "ROIName"# annotation to use for clustering (supervised), if NULL, then unsupervised clustering
   sort_order = NULL # list of levels of annotation defined by sort_by, NULL for unsupervised clustering.  should be defined if sort_by is defined.  If NULL, then default to alphabetical order
   
   # annotations input (up to 3)
-  annotations_to_show = NULL #e.g. annotations_to_show = c("TissueType", "Response")
+  annotations_to_show = "ROIName" #e.g. annotations_to_show = c("TissueType", "Response"). should include sort_by variable if specified
   
   # annotations colors input
-  annotations_colors = NULL # named list of lists. e.g. annotation_colors = list(TissueType = c(Normal = "blue", Disease = "red"), Response = c(R = "green", NR = "orange"))
+  annotation_colors = NULL # named list of lists. e.g. annotation_colors = list(TissueType = c(Normal = "blue", Disease = "red"), Response = c(R = "green", NR = "orange"))
   
   # heatmap colors option (high, med, low)
   heatmap_colors = NULL # list of low, med, high colors. if NULL, uses pheatmap default. e.g. c("navy", "white", "firebrick3")
@@ -89,6 +89,8 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
       annot_rownames <- annotations[,1]
       annotations <- annotations[,-1, drop = FALSE]
       rownames(annotations) <- annot_rownames
+    } else {
+      annotations = NULL
     }
     
     # log2 transform data
@@ -114,7 +116,7 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
                    clustering_distance_rows = clustering_distance,
                    clustering_distance_cols = clustering_distance,
                    fontsize = 10,
-                   labels_row = rownames(targetCountMatrix),
+                   labels_row = rownames(data),
                    cellheight = ifelse(nrow(data) < 63, 11, NA),
                    cellwidth = ifelse(ncol(data) < 51, 11, NA),
                    border_color = NA,
