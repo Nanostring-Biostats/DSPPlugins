@@ -31,6 +31,9 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
   # clustering distance & linkage option
   clustering_distance = "euclidean" # other options: "correlation" (Pearson's), "maximum", "manhattan", "canberra", "binary", or "minkowski"
   
+  # set aspect ratio
+  height = 10
+  width = 10
   
   #### Do not modify below! ------------------------------------------------
   
@@ -38,18 +41,6 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
   targetCountMatrix <- dataset
   rownames(targetCountMatrix) <- targetAnnotations[match(rownames(targetCountMatrix), targetAnnotations[ , "TargetGUID"]), "TargetName"]
   
-  # set up height and width for output PDF
-  width <- ncol(targetCountMatrix)*1.6
-  if (ncol(targetCountMatrix) > 50) {
-    width <- 1000
-  } else if (ncol(targetCountMatrix < 15)) {
-    width <- width*2.5
-  }
-  
-  height <- max(nrow(targetCountMatrix) * 1.3, 10)
-  if (ncol(targetCountMatrix) > 63) {
-    height <- 800
-  }
   
   
   pdf(file = file.path(outputFolder, "GeneralHeatmap.pdf", fsep = .Platform$file.sep), width = width, height = height)
@@ -93,6 +84,20 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
       annotations = NULL
     }
     
+    # sort annotations and set up white spaces between levels
+    if (!is.null(sort_by)) {
+      if (!is.null(sort_order)) {
+        annotations = annotations[order(factor(annotations[,sort_by], levels = sort_order)), ,drop = FALSE]
+      } else {
+        annotations = annotations[order(annotations[,sort_by]), ,drop = FALSE]
+      }
+      
+      gaps_col = match(unique(annotations[,sort_by]), annotations[,sort_by])
+      gaps_col = gaps_col[2:length(gaps_col)] - 1
+    } else{
+      gaps_col = NULL
+    }
+    
     # log2 transform data
     data <- data.frame(log2(data))
     
@@ -109,6 +114,8 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
                                                          "RdYlBu")))(100)
     }
     
+    
+    
     # plot pheatmap
     ph <- pheatmap(mat = data,
                    color = heatmap_colors, 
@@ -124,8 +131,8 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
                    show_rownames = nrow(data) < 63,
                    annotation_col = annotations,
                    annotation_colors = annotation_colors,
+                   gaps_col = gaps_col,
                    scale = scale
-                   #main = name
                    )
     
     return(ph)
