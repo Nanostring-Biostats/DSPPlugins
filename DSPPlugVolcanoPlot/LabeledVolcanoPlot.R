@@ -41,7 +41,7 @@ gene_list <- NULL #c("IL2RG", "GLUL", "SPIB", "C2")
 pval_thresh <- 0.05
 
 # FDR threshold, default threshold over pval_thresh
-fdr_thresh <- 0.01
+fdr_thresh <- NULL
 
 # Fold Change threshold, if set coloring options will change
 fc_thresh <- 0.5
@@ -70,12 +70,12 @@ plot_height <- 4
 ####################### COLORING #########################
 # Default point color for points not in target groups or
 #   above thresholds
-default_color <- "grey25"
+default_color <- "grey65"
 
 # Color of points below fc_thresh but above pval and/or 
 #   fdr thresholds. change to the same as default_color
 #   if you don't want these targets called out
-fc_color <- "grey50"
+fc_color <- "grey30"
 
 # Specific target groups to color in the plot
 #   If variable is set, genes are colored by given target 
@@ -184,7 +184,8 @@ plotVolcano <- function(de){
          x=paste(negative_label, "<-", "log2(FC)", "->", positive_label, sep=" "),
          title=plot_title)+
     theme_bw()+
-    theme(text=element_text(size=font_size, family=font_family))+
+    # theme(text=element_text(size=font_size, family=font_family), 
+    #       axis. = element_text(family=font_family))+
     scale_x_continuous(limits=c(-maxFC, maxFC))
   
     # this makes for easier testing if not running in DSPDA, will flip yaxis of graph
@@ -311,7 +312,7 @@ plotVolcano <- function(de){
     gene_labels <- subset(de, subset=Target.Name %in% gene_list)
   }else{
     # remove gene labels for genes below lowest pvalue cutoff
-    gene_labels <- de[which(de$Pvalue < min(fdr_pval, pval_thresh)),]
+    gene_labels <- de[which(de$Pvalue < min(fdr_pval, pval_thresh, na.rm = T)),]
     
     # only label genes above fc_thresh if set by user else only look at pvalue
     if(!is.null(fc_thresh) & label_fc == FALSE){
@@ -329,7 +330,9 @@ plotVolcano <- function(de){
   
   # add y axis labels 
   ggFigure <- ggFigure + scale_y_continuous(trans=change_axis_revlog_trans(base=10), breaks=as.numeric(yaxis$brk),
-                          labels=yaxis$label)
+                          labels=yaxis$label)+
+    theme(text=element_text(size=font_size, family=font_family), 
+          axis.title = element_text(family=font_family))
 
   colnames(gene_labels) <- c("Target tag", "Target group memership/s", "Target Name", "Log2", 
                              "Pvalue", "Adjusted pvalue", "-log10 pvalue", "-log10 adjusted pvalue",
