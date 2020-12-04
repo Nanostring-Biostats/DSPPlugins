@@ -31,9 +31,12 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
   # clustering distance & linkage option
   clustering_distance = "euclidean" # other options: "correlation" (Pearson's), "maximum", "manhattan", "canberra", "binary", or "minkowski"
   
+  # set output file type for plot
+  file_type = "png" # other options:"png", "tiff", "jpeg", "bmp", svg", "pdf"
+  
   # set aspect ratio
-  height = 10
-  width = 10
+  height = 500 # recommend 10 for file_type "svg" or "pdf", and 500 for "png", "tiff", "jpeg", or "bmp"
+  width = 500 # recommend 10 for file_type "svg" or "pdf", and 500 for "png", "tiff", "jpeg", or "bmp"
   
   #### Do not modify below! ------------------------------------------------
   
@@ -43,7 +46,7 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
   
   
   
-  pdf(file = file.path(outputFolder, "GeneralHeatmap.pdf", fsep = .Platform$file.sep), width = width, height = height)
+  match.fun(file_type)(file.path(outputFolder, paste0("GeneralHeatmap.", file_type), fsep = .Platform$file.sep), width = width, height = height)
   draw_general_heatmap(data = targetCountMatrix,
                        heatmap_colors = heatmap_colors,
                        scale_cutoff = scale_cutoff,
