@@ -31,6 +31,9 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
   # clustering distance & linkage option
   clustering_distance = "euclidean" # other options: "correlation" (Pearson's), "maximum", "manhattan", "canberra", "binary", or "minkowski"
   
+  #set font size
+  fontsize = 10
+  
   # set output file type for plot
   file_type = "png" # other options:"png", "tiff", "jpeg", "bmp", svg", "pdf"
   
@@ -56,7 +59,8 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
                        sort_by = sort_by,
                        sort_order = sort_order,
                        clustering_distance = clustering_distance,
-                       scale = scale)
+                       scale = scale,
+                       fontsize = fontsize)
   dev.off()
 }
 
@@ -74,7 +78,8 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
                                    sort_by = NULL,
                                    sort_order = NULL,
                                    clustering_distance = "euclidean", 
-                                   scale = "row") {
+                                   scale = "row",
+                                   fontsize = 10) {
     
     
     # subset annotations data
@@ -125,6 +130,8 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
                    cluster_cols = is.null(sort_by),
                    clustering_distance_rows = clustering_distance,
                    clustering_distance_cols = clustering_distance,
+                   legend_breaks = seq(-scale_cutoff, scale_cutoff, 1),
+                   legend_labels = seq(-scale_cutoff, scale_cutoff, 1),
                    fontsize = 10,
                    labels_row = rownames(data),
                    cellheight = ifelse(nrow(data) < 63, 11, NA),
