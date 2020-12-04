@@ -175,6 +175,8 @@ plotVolcano <- function(de){
   # find closest FDR value to fdr_thresh and use that pvalue to add y axis cutoff line
   if(!is.null(fdr_thresh)){
     fdr_pval <- mean(de$Pvalue[which(abs(de$FDR - fdr_thresh) == min(abs(de$FDR - fdr_thresh)))])
+  }else{
+    fdr_pval <- NULL
   }
   
   # create basic volcano plot with correct formatting
