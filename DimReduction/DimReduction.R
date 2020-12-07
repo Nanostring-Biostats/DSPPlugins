@@ -26,7 +26,7 @@ color_levels = c("PanCK-pos", "PanCK-neg")
 # color_by column in the annotations file 
 # when using a tag or a factor. color_levels 
 # may be set to NULL, and the plugin will 
-# automatically asign levels to colors
+# automatically assign levels to colors
 #
 # When coloring by a target use "High", "Low" 
 # and "Mid". "Mid" is optional.
@@ -54,14 +54,15 @@ color_levels = c("PanCK-pos", "PanCK-neg")
 #        Execution Code      # 
 ##############################
 # Libraries:
-library(Rtsne)
-library(umap)
-library(stats)
-library(ggplot2)
-library(reshape2)
-library(dplyr)
-library(RColorBrewer)
-library(openxlsx)
+library(Rtsne)        # for t-SNE
+library(umap)         # for UMAP
+library(stats)        # for princomp
+library(ggplot2)      # for ggplot
+library(reshape2)     # for melt/dcast
+library(dplyr)        # for melt/dcast
+library(RColorBrewer) # for brewer.pal
+library(openxlsx)     # for *Workbook
+library(testthat)     # for fail
 
 # main function
 main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
@@ -95,9 +96,12 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
   # if color is a gene symbol add it to the annotations for plotting
   if(is.null(color_by)) {
     colType <- 'Null'
+  } else if(!color_by %in% rownames(targetCountMatrix) &
+            !color_by %in% colnames(segmentAnnotations)) {
+    fail(message = 'Color not found. Please confirm that your color feature is either a column in Segment Properties or a Target name from your target count matrix')
   } else if(color_by %in% rownames(targetCountMatrix)) {
     if(!all(color_levels %in% c("High", "Mid", "Low"))) {
-      stop('Error: Please use color_levels "High", "Mid", "Low" with a Target coloring')
+      fail(message = 'Incorrect color level definition. Please use color_levels = c("High", "Mid", "Low") or c("High", "Low") when using a Target for coloring')
     }
     segmentAnnotations[, color_by] <- unlist(log2(targetCountMatrix[color_by, ]))
     colType <- 'Target'
@@ -123,9 +127,15 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
   # Size by calculation:
   if(!is.null(size_by)) {
     if(size_by %in% rownames(targetCountMatrix)) {
-      segmentAnnotations[[size_by]] <- unlist(targetCountMatrix[size_by, ])
+      if(size_by == color_by) {
+        trg <- unlist(targetCountMatrix[size_by, ])
+        size_by <- paste0(size_by,'_linear')
+        segmentAnnotations[[size_by]] <- trg
+      } else {
+        segmentAnnotations[[size_by]] <- unlist(targetCountMatrix[size_by, ])
+      }
     } else {
-      stop('Error: Please use check to ensure that the target name is in your count matrix')
+      fail(message = 'Size not found. Please check to ensure that the target name specified for size is in the target count matrix')
     }
   }
 
@@ -277,7 +287,7 @@ calc_DR <- function(plot_type = NULL,
     segmentAnnotations$Dim2 <- dr_data$x[, 2]
     segmentAnnotations$Dim3 <- dr_data$x[, 3]
   } else {
-    stop('Error: Additional plot types not yet supported\n')
+    fail('Plot type not found. Please use "PCA", "tSNE", or "UMAP"')
   }
   rtn <- list(annot = segmentAnnotations, data = dr_data)
   return(rtn)
@@ -304,19 +314,31 @@ plot_DR <- function(targetCountMatrix = NULL,
   
   # Add size
   if(!is.null(params$size_by)) {
+    ttl <- paste0(gsub("_linear", "", params$size_by),
+                  ",\nCounts")
     plt <- plt +
       geom_point(aes_string(shape = params$shape_by,   # if any of these is null it will still graph
                             color = params$color_by,
                             size = params$size_by),
                  alpha = 0.8) +
-      guides(shape = guide_legend(override.aes = list(size = 4)),
-             color = guide_legend(override.aes = list(size = 4)),
-             size = guide_legend(title = paste0(params$size_by, ',\nCounts')))
+      scale_size_continuous(range = c(2,7))
   } else {
     plt <- plt +
       geom_point(aes_string(shape = params$shape_by,   # if any of these is null it will still graph
                             color = params$color_by),
                  size = 3.5, alpha = 0.8)
+  }
+  
+  # Keep legend symbol size consistent
+  if(params$colType == "Target") {
+    plt <- plt +
+      guides(shape = guide_legend(override.aes = list(size = 4)), 
+             size = guide_legend(title = ttl))
+  } else {
+    plt <- plt +
+      guides(shape = guide_legend(override.aes = list(size = 4)),
+             color = guide_legend(override.aes = list(size = 4)), 
+             size = guide_legend(title = ttl))
   }
   
   # Add variance estimates to PCA plot
@@ -361,27 +383,31 @@ plot_DR <- function(targetCountMatrix = NULL,
     # if a list of colors is provided use those
     } else {
       plt <- plt +
-        scale_color_manual(values = params$plot_colors)
+        scale_color_manual(values = params$plot_colors) 
     }
   # coloring by Target value
   } else if(params$colType == "Target") {
     clr_name <- paste0(params$color_by, ',\nLog2 Counts')
     # 3 point gradient
     if(all(c("High","Mid","Low") %in% names(params$plot_colors))) {
+      rng <- range(segmentAnnotations[, params$color_by])
+      mdpt <- rng[2] - (rng[2]-rng[1])/2
       plt <- plt +
         scale_color_gradient2(name = clr_name,
                               low = params$plot_colors$Low,
                               mid = params$plot_colors$Mid,
                               high = params$plot_colors$High,
-                              midpoint = median(segmentAnnotations[, params$color_by]))
+                              midpoint = mdpt,
+                              guide = "colorbar")
     } else if(all(c("High","Low") %in% names(params$plot_colors))) {
       # 2 point gradient
       plt <- plt +
         scale_color_gradient(name = clr_name,
                              low = params$plot_colors$Low, 
-                             high = params$plot_colors$High)
+                             high = params$plot_colors$High,
+                             guide = "colorbar")
     } else {
-      stop("Error: Unexpected labels for plot levels, please use 'High', 'Mid', 'Low'")
+      fail('Color Endpoints not defined, please ensure "High" and "Low" levels are included in color_levels.')
     }
   }
   return(plt)
