@@ -12,34 +12,24 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
   
   # users can modify following arguments - currently set to defaults
   
-  # supervised/unsupervised ROIs option
-  sort_by = "ROIName"# annotation to use for clustering (supervised), if NULL, then unsupervised clustering
-  sort_order = NULL # list of levels of annotation defined by sort_by, NULL for unsupervised clustering.  should be defined if sort_by is defined.  If NULL, then default to alphabetical order
-  
-  # annotations input (up to 3)
-  annotations_to_show = "ROIName" #e.g. annotations_to_show = c("TissueType", "Response"). should include sort_by variable if specified
-  
-  # annotations colors input
-  annotation_colors = NULL # named list of lists. e.g. annotation_colors = list(TissueType = c(Normal = "blue", Disease = "red"), Response = c(R = "green", NR = "orange"))
-  
-  # heatmap colors option (high, med, low)
-  heatmap_colors = NULL # list of low, med, high colors. if NULL, uses pheatmap default. e.g. c("navy", "white", "firebrick3")
-  
-  scale = "row" # passed to pheatmap. options are "none", "row", "column"
+  heatmap_colors = NULL #e.g. c("navy", "white", "firebrick3")
   scale_cutoff = 3
-  
-  # clustering distance & linkage option
-  clustering_distance = "euclidean" # other options: "correlation" (Pearson's), "maximum", "manhattan", "canberra", "binary", or "minkowski"
-  
-  #set font size
+  annotations_to_show = NULL #e.g. c("TissueType", "Response")
+  annotation_colors = NULL #e.g. list(TissueType = c(Normal = "green", Disease = "red"), Response = c(NR = "blue", R = "orange"))
+  sort_by = NULL
+  sort_order = NULL
+  clustering_distance = "euclidean" #options: "euclidean", "correlation" (Pearson's), "maximum", "manhattan", "canberra", "binary", or "minkowski"
+  scale = "row" #options: "none", "row", "column"
   fontsize = 10
   
   # set output file type for plot
   file_type = "png" # other options:"png", "tiff", "jpeg", "bmp", svg", "pdf"
   
-  # set aspect ratio
+  # set aspect ratio of output file
   height = 500 # recommend 10 for file_type "svg" or "pdf", and 500 for "png", "tiff", "jpeg", or "bmp"
   width = 500 # recommend 10 for file_type "svg" or "pdf", and 500 for "png", "tiff", "jpeg", or "bmp"
+  
+  
   
   #### Do not modify below! ------------------------------------------------
   
@@ -64,7 +54,27 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
   dev.off()
 }
 
-
+#' Draw general heatmap
+#' 
+#' @param data data frame of data to plot.  targets in rows, samples in columns
+#' @param heatmap_colors list of low, med, high colors used for heatmap colors. if NULL, uses pheatmap default
+#' @param scale_cutoff value to limit standard deviations of z-score in either direction
+#' @param annotations data frame of sample annotations
+#' @param annotations_to_show list of annotations to show as color bars on heatmap. must include sort_by variable if specified
+#' @param annotation_colors named list of lists specifying colors for each level of annotations_to_show
+#' @param sort_by annotation to use for supervised clustering
+#' @param sort_order list of levels of annotation defined by sort_by in desired order of appearance. optionally defined if sort_by is defined.  If NULL, then default to alphabetical order
+#' @param clustering_distance distance measure used in clustering rows and columns
+#' @param scale passed to pheatmap.  character indicating if the values should be centered and scaled in either the row direction, column direction, or none
+#' @param fontsize passed to pheatmap. base fontsize for the plot
+#' 
+#' @return Heatmap with annotations and legends
+#' 
+#' @examples 
+#' @import pheatmap
+#' @import RColorBrewer
+#' 
+#' @export draw_general_heatmap
 
 draw_general_heatmap <- function(data = targetCountMatrix,
                                  heatmap_colors = NULL,
