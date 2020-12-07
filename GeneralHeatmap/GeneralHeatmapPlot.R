@@ -73,6 +73,17 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
 #' @examples 
 #' @import pheatmap
 #' @import RColorBrewer
+#' draw_general_heatmap(data = targetCountMatrix,
+#' heatmap_colors = c("navy", "white", "firebrick3"),
+#' scale_cutoffs = 3,
+#' annotations = segmentAnnotations,
+#' annotations_to_show = c("RIOName", "ScanName"),
+#' annotation_colors = NULL,
+#' sort_by = "ScanName",
+#' sort_order = c("HST 18.1 F 2-9", "HST 18.1 G 2-9"),
+#' clustering_distance = "euclidean",
+#' scale = "row",
+#' fontsize = 10)
 #' 
 #' @export draw_general_heatmap
 
@@ -128,8 +139,6 @@ draw_general_heatmap <- function(data = targetCountMatrix,
     heatmap_colors = colorRampPalette(rev(brewer.pal(n = 7, name =
                                                        "RdYlBu")))(100)
   }
-  
-  
   
   # plot pheatmap
   p <- pheatmap(mat = data,
