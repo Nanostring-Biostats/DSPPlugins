@@ -6,9 +6,10 @@ plot_type = "PCA"
 # Plot Parameters
 color_by = "SegmentName"
 # tag, factor, target or NULL
-
 shape_by = "SegmentName"
 # tag, factor or NULL
+size_by = "CD68"
+# target only or NULL
 
 plot_font = list(family = "sans",
                  size = 15)
@@ -91,7 +92,7 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
   }
 
   # Step 3: Graph data
-  # if color or shape is a gene symbol add it to the annotations for plotting
+  # if color is a gene symbol add it to the annotations for plotting
   if(is.null(color_by)) {
     colType <- 'Null'
   } else if(color_by %in% rownames(targetCountMatrix)) {
@@ -118,12 +119,22 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
                        extend_palette(n = length(new_lvls)))
     }
   }
+  
+  # Size by calculation:
+  if(!is.null(size_by)) {
+    if(size_by %in% rownames(targetCountMatrix)) {
+      segmentAnnotations[[size_by]] <- unlist(targetCountMatrix[size_by, ])
+    } else {
+      stop('Error: Please use check to ensure that the target name is in your count matrix')
+    }
+  }
 
   # gather color parameters
   names(plot_colors) <- color_levels[1:length(plot_colors)]
   params <- list("plot_type" = plot_type,
                  "color_by" = color_by,
                  "shape_by" = shape_by,
+                 "size_by" = size_by,
                  "plot_font" = plot_font,
                  "plot_colors" = plot_colors,
                  "color_levels" = color_levels,
@@ -287,12 +298,26 @@ plot_DR <- function(targetCountMatrix = NULL,
   # graph setup
   plt <- ggplot(segmentAnnotations,
                 aes_string(x = dims[1], y = dims[2])) + 
-    geom_point(aes_string(shape = params$shape_by,   # if either of these is null it will still graph
-                          color = params$color_by),
-               size = 3.5, alpha = 0.8) +
     theme_bw(base_size = params$plot_font$size) +
     theme(aspect.ratio = 1,
           text = element_text(family = params$plot_font$family)) 
+  
+  # Add size
+  if(!is.null(params$size_by)) {
+    plt <- plt +
+      geom_point(aes_string(shape = params$shape_by,   # if any of these is null it will still graph
+                            color = params$color_by,
+                            size = params$size_by),
+                 alpha = 0.8) +
+      guides(shape = guide_legend(override.aes = list(size = 4)),
+             color = guide_legend(override.aes = list(size = 4)),
+             size = guide_legend(title = paste0(params$size_by, ',\nCounts')))
+  } else {
+    plt <- plt +
+      geom_point(aes_string(shape = params$shape_by,   # if any of these is null it will still graph
+                            color = params$color_by),
+                 size = 3.5, alpha = 0.8)
+  }
   
   # Add variance estimates to PCA plot
   if(params$plot_type == "PCA") {
