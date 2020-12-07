@@ -66,86 +66,82 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
 
 
 
-
-
+draw_general_heatmap <- function(data = targetCountMatrix,
+                                 heatmap_colors = NULL,
+                                 scale_cutoff = 3,
+                                 annotations = segmentAnnotations,
+                                 annotations_to_show = NULL,
+                                 annotation_colors = NULL,
+                                 sort_by = NULL,
+                                 sort_order = NULL,
+                                 clustering_distance = "euclidean", 
+                                 scale = "row",
+                                 fontsize = 10) {
   
-  draw_general_heatmap <- function(data = targetCountMatrix,
-                                   heatmap_colors = NULL,
-                                   scale_cutoff = 3,
-                                   annotations = segmentAnnotations,
-                                   annotations_to_show = NULL,
-                                   annotation_colors = NULL,
-                                   sort_by = NULL,
-                                   sort_order = NULL,
-                                   clustering_distance = "euclidean", 
-                                   scale = "row",
-                                   fontsize = 10) {
-    
-    
-    # subset annotations data
-    if (!is.null(annotations_to_show)) {
-      annotations <- subset(annotations, select = c("segmentID", annotations_to_show))
-      annot_rownames <- annotations[,1]
-      annotations <- annotations[,-1, drop = FALSE]
-      rownames(annotations) <- annot_rownames
-    } else {
-      annotations = NULL
-    }
-    
-    # sort annotations and set up white spaces between levels
-    if (!is.null(sort_by)) {
-      if (!is.null(sort_order)) {
-        annotations = annotations[order(factor(annotations[,sort_by], levels = sort_order)), ,drop = FALSE]
-      } else {
-        annotations = annotations[order(annotations[,sort_by]), ,drop = FALSE]
-      }
-      
-      gaps_col = match(unique(annotations[,sort_by]), annotations[,sort_by])
-      gaps_col = gaps_col[2:length(gaps_col)] - 1
-    } else{
-      gaps_col = NULL
-    }
-    
-    # log2 transform data
-    data <- data.frame(log2(data))
-    
-    # cap log2 data at scale_cutoff
-    scale_cutoff <- abs(scale_cutoff)
-    data <- pmin(pmax(t(scale(t(data))), - scale_cutoff), scale_cutoff)
-    colnames(data) <- rownames(annotations)
-    
-    # set heatmap color palette
-    if (!is.null(heatmap_colors)) {
-      heatmap_colors = colorRampPalette(heatmap_colors)(100)
-    } else {
-      heatmap_colors = colorRampPalette(rev(brewer.pal(n = 7, name =
-                                                         "RdYlBu")))(100)
-    }
-    
-    
-    
-    # plot pheatmap
-    ph <- pheatmap(mat = data,
-                   color = heatmap_colors, 
-                   cluster_cols = is.null(sort_by),
-                   clustering_distance_rows = clustering_distance,
-                   clustering_distance_cols = clustering_distance,
-                   legend_breaks = seq(-scale_cutoff, scale_cutoff, 1),
-                   legend_labels = seq(-scale_cutoff, scale_cutoff, 1),
-                   fontsize = 10,
-                   labels_row = rownames(data),
-                   cellheight = ifelse(nrow(data) < 63, 11, NA),
-                   cellwidth = ifelse(ncol(data) < 51, 11, NA),
-                   border_color = NA,
-                   show_colnames = FALSE,
-                   show_rownames = nrow(data) < 63,
-                   annotation_col = annotations,
-                   annotation_colors = annotation_colors,
-                   gaps_col = gaps_col,
-                   scale = scale
-                   )
-    
-    return(ph)
-    
+  
+  # subset annotations data
+  if (!is.null(annotations_to_show)) {
+    annotations <- subset(annotations, select = c("segmentID", annotations_to_show))
+    annot_rownames <- annotations[,1]
+    annotations <- annotations[,-1, drop = FALSE]
+    rownames(annotations) <- annot_rownames
+  } else {
+    annotations = NULL
   }
   
+  # sort annotations and set up white spaces between levels
+  if (!is.null(sort_by)) {
+    if (!is.null(sort_order)) {
+      annotations = annotations[order(factor(annotations[,sort_by], levels = sort_order)), ,drop = FALSE]
+    } else {
+      annotations = annotations[order(annotations[,sort_by]), ,drop = FALSE]
+    }
+    
+    gaps_col = match(unique(annotations[,sort_by]), annotations[,sort_by])
+    gaps_col = gaps_col[2:length(gaps_col)] - 1
+  } else{
+    gaps_col = NULL
+  }
+  
+  # log2 transform data
+  data <- data.frame(log2(data))
+  
+  # cap log2 data at scale_cutoff
+  scale_cutoff <- abs(scale_cutoff)
+  data <- pmin(pmax(t(scale(t(data))), - scale_cutoff), scale_cutoff)
+  colnames(data) <- rownames(annotations)
+  
+  # set heatmap color palette
+  if (!is.null(heatmap_colors)) {
+    heatmap_colors = colorRampPalette(heatmap_colors)(100)
+  } else {
+    heatmap_colors = colorRampPalette(rev(brewer.pal(n = 7, name =
+                                                       "RdYlBu")))(100)
+  }
+  
+  
+  
+  # plot pheatmap
+  p <- pheatmap(mat = data,
+                color = heatmap_colors, 
+                cluster_cols = is.null(sort_by),
+                clustering_distance_rows = clustering_distance,
+                clustering_distance_cols = clustering_distance,
+                legend_breaks = seq(-scale_cutoff, scale_cutoff, 1),
+                legend_labels = seq(-scale_cutoff, scale_cutoff, 1),
+                fontsize = 10,
+                labels_row = rownames(data),
+                cellheight = ifelse(nrow(data) < 63, 11, NA),
+                cellwidth = ifelse(ncol(data) < 51, 11, NA),
+                border_color = NA,
+                show_colnames = FALSE,
+                show_rownames = nrow(data) < 63,
+                annotation_col = annotations,
+                annotation_colors = annotation_colors,
+                gaps_col = gaps_col,
+                scale = scale
+  )
+  
+  return(p)
+  
+}
