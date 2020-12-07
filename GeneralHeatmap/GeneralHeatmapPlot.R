@@ -97,7 +97,7 @@ draw_general_heatmap <- function(data = targetCountMatrix,
                                  sort_order = NULL,
                                  clustering_distance = "euclidean", 
                                  scale = "row",
-                                 fontsize = 10) {
+                                 fontsize = 10, ...) {
   
   
   # subset annotations data
@@ -158,8 +158,7 @@ draw_general_heatmap <- function(data = targetCountMatrix,
                 annotation_col = annotations,
                 annotation_colors = annotation_colors,
                 gaps_col = gaps_col,
-                scale = scale
-  )
+                scale = scale, ...)
   
   return(p)
   
