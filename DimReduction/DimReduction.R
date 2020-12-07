@@ -186,8 +186,9 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
   if(tolower(save_as) == 'pdf') {
     pdf(file = file.path(outputFolder, 
                          paste0(plot_type, "_with_",
-                                color_by, "_and_",
-                                shape_by, ".pdf"),
+                                color_by, "-Color_and_",
+                                shape_by, "-Shape_and_",
+                                size_by,"-Size.pdf"),
                          fsep = .Platform$file.sep),
         width = 8,
         height = 6)
@@ -202,8 +203,9 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
     for(plt in names(plt_list)) {
       ggsave(filename = file.path(outputFolder, 
                                   paste0(plot_type, "_", plt, "_with_",
-                                         color_by, "_and_",
-                                         shape_by, ".", tolower(save_as)),
+                                         color_by, "-Color_and_",
+                                         shape_by, "-Shape_and_",
+                                         size_by, "-Size.", tolower(save_as)),
                                   fsep = .Platform$file.sep),
              plot = plt_list[[plt]],
              device = tolower(save_as),
