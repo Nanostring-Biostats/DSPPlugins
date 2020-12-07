@@ -12,22 +12,22 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
   
   # users can modify following arguments - currently set to defaults
   
-  heatmap_colors = NULL #e.g. c("navy", "white", "firebrick3")
-  scale_cutoff = 3
-  annotations_to_show = NULL #e.g. c("TissueType", "Response")
-  annotation_colors = NULL #e.g. list(TissueType = c(Normal = "green", Disease = "red"), Response = c(NR = "blue", R = "orange"))
-  sort_by = NULL
-  sort_order = NULL
-  clustering_distance = "euclidean" #options: "euclidean", "correlation" (Pearson's), "maximum", "manhattan", "canberra", "binary", or "minkowski"
-  scale = "row" #options: "none", "row", "column"
-  fontsize = 10
+  heatmap_colors <- NULL #e.g. c("navy", "white", "firebrick3")
+  scale_cutoff <- 3
+  annotations_to_show <- NULL #e.g. c("TissueType", "Response")
+  annotation_colors <- NULL #e.g. list(TissueType = c(Normal = "green", Disease = "red"), Response = c(NR = "blue", R = "orange"))
+  sort_by <- NULL
+  sort_order <- NULL
+  clustering_distance <- "euclidean" #options: "euclidean", "correlation" (Pearson's), "maximum", "manhattan", "canberra", "binary", or "minkowski"
+  scale <- "row" #options: "none", "row", "column"
+  fontsize <- 10
   
   # set output file type for plot
-  file_type = "png" # other options:"png", "tiff", "jpeg", "bmp", svg", "pdf"
+  file_type <- "png" # other options:"png", "tiff", "jpeg", "bmp", svg", "pdf"
   
   # set aspect ratio of output file
-  height = 500 # recommend 10 for file_type "svg" or "pdf", and 500 for "png", "tiff", "jpeg", or "bmp"
-  width = 500 # recommend 10 for file_type "svg" or "pdf", and 500 for "png", "tiff", "jpeg", or "bmp"
+  height <- 500 # recommend 10 for file_type "svg" or "pdf", and 500 for "png", "tiff", "jpeg", or "bmp"
+  width <- 500 # recommend 10 for file_type "svg" or "pdf", and 500 for "png", "tiff", "jpeg", or "bmp"
   
   
   
@@ -37,8 +37,7 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
   targetCountMatrix <- dataset
   rownames(targetCountMatrix) <- targetAnnotations[match(rownames(targetCountMatrix), targetAnnotations[ , "TargetGUID"]), "TargetName"]
   
-  
-  
+  # call plotting function
   match.fun(file_type)(file.path(outputFolder, paste0("GeneralHeatmap.", file_type), fsep = .Platform$file.sep), width = width, height = height)
   draw_general_heatmap(data = targetCountMatrix,
                        heatmap_colors = heatmap_colors,
@@ -53,6 +52,7 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
                        fontsize = fontsize)
   dev.off()
 }
+
 
 #' Draw general heatmap
 #' 
@@ -113,15 +113,15 @@ draw_general_heatmap <- function(data = targetCountMatrix,
   # sort annotations and set up white spaces between levels
   if (!is.null(sort_by)) {
     if (!is.null(sort_order)) {
-      annotations = annotations[order(factor(annotations[,sort_by], levels = sort_order)), ,drop = FALSE]
+      annotations <- annotations[order(factor(annotations[,sort_by], levels = sort_order)), ,drop = FALSE]
     } else {
-      annotations = annotations[order(annotations[,sort_by]), ,drop = FALSE]
+      annotations <- annotations[order(annotations[,sort_by]), ,drop = FALSE]
     }
     
-    gaps_col = match(unique(annotations[,sort_by]), annotations[,sort_by])
-    gaps_col = gaps_col[2:length(gaps_col)] - 1
+    gaps_col <- match(unique(annotations[,sort_by]), annotations[,sort_by])
+    gaps_col <- gaps_col[2:length(gaps_col)] - 1
   } else{
-    gaps_col = NULL
+    gaps_col <- NULL
   }
   
   # log2 transform data
@@ -134,9 +134,9 @@ draw_general_heatmap <- function(data = targetCountMatrix,
   
   # set heatmap color palette
   if (!is.null(heatmap_colors)) {
-    heatmap_colors = colorRampPalette(heatmap_colors)(100)
+    heatmap_colors <- colorRampPalette(heatmap_colors)(100)
   } else {
-    heatmap_colors = colorRampPalette(rev(brewer.pal(n = 7, name =
+    heatmap_colors <- colorRampPalette(rev(brewer.pal(n = 7, name =
                                                        "RdYlBu")))(100)
   }
   
