@@ -21,6 +21,7 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
   clustering_distance <- "euclidean" #options: "euclidean", "correlation" (Pearson's), "maximum", "manhattan", "canberra", "binary", or "minkowski"
   scale <- "row" #options: "none", "row", "column"
   fontsize <- 10
+  plot_title = "log2 Change from Mean"
   
   # set output file type for plot
   file_type <- "png" # other options:"png", "tiff", "jpeg", "bmp", svg", "pdf"
@@ -67,6 +68,7 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
 #' @param clustering_distance distance measure used in clustering rows and columns
 #' @param scale passed to pheatmap.  character indicating if the values should be centered and scaled in either the row direction, column direction, or none
 #' @param fontsize passed to pheatmap. base fontsize for the plot
+#' @param plot_title title of heatmap
 #' 
 #' @return Heatmap with annotations and legends
 #' 
@@ -97,7 +99,8 @@ draw_general_heatmap <- function(data = targetCountMatrix,
                                  sort_order = NULL,
                                  clustering_distance = "euclidean", 
                                  scale = "row",
-                                 fontsize = 10, ...) {
+                                 fontsize = 10, 
+                                 plot_title = "log2 Change from Mean", ...) {
   
   
   # subset annotations data
@@ -158,7 +161,8 @@ draw_general_heatmap <- function(data = targetCountMatrix,
                 annotation_col = annotations,
                 annotation_colors = annotation_colors,
                 gaps_col = gaps_col,
-                scale = scale, ...)
+                scale = scale, 
+                main = plot_title, ...)
   
   return(p)
   
