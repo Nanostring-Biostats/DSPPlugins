@@ -183,12 +183,16 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
   
   # Step 4: Save Files
   # Save File. PDF is first case
+  save_params <- c(plot_type, "with", color_by, shape_by, size_by)
+  save_params <- save_params[!is.null(save_params)]
+  if(length(save_params) == 2) {
+    save_params <- plot_type
+  } else {
+    save_params <- paste(save_params, collapse = '_')
+  }
   if(tolower(save_as) == 'pdf') {
     pdf(file = file.path(outputFolder, 
-                         paste0(plot_type, "_with_",
-                                color_by, "-Color_and_",
-                                shape_by, "-Shape_and_",
-                                size_by,"-Size.pdf"),
+                         paste0(save_params, ".pdf"),
                          fsep = .Platform$file.sep),
         width = 8,
         height = 6)
@@ -202,10 +206,8 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
   } else {
     for(plt in names(plt_list)) {
       ggsave(filename = file.path(outputFolder, 
-                                  paste0(plot_type, "_", plt, "_with_",
-                                         color_by, "-Color_and_",
-                                         shape_by, "-Shape_and_",
-                                         size_by, "-Size.", tolower(save_as)),
+                                  paste0(save_params, ".",
+                                         tolower(save_as)),
                                   fsep = .Platform$file.sep),
              plot = plt_list[[plt]],
              device = tolower(save_as),
@@ -216,7 +218,8 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
     }
     if(plot_type == "PCA") {
       ggsave(filename = file.path(outputFolder, 
-                                  paste0("PCAVariancePlot.", tolower(save_as)),
+                                  paste0("PCAVariancePlot.",
+                                         tolower(save_as)),
                                   fsep = .Platform$file.sep),
              plot = vplt,
              device = tolower(save_as), 
@@ -315,15 +318,15 @@ plot_DR <- function(targetCountMatrix = NULL,
           text = element_text(family = params$plot_font$family)) 
   
   # Add size
-  if(!is.null(params$size_by)) {
-    ttl <- paste0(gsub("_linear", "", params$size_by),
-                  ",\nCounts")
-    plt <- plt +
+ if(!is.null(params$size_by)) {
+   sz_ttl <- paste0(gsub("_linear", "", params$size_by),
+                    ",\nCounts")
+   plt <- plt +
       geom_point(aes_string(shape = params$shape_by,   # if any of these is null it will still graph
                             color = params$color_by,
                             size = params$size_by),
                  alpha = 0.8) +
-      scale_size_continuous(range = c(2,7))
+      scale_size_continuous(name = sz_ttl, range = c(2,7))
   } else {
     plt <- plt +
       geom_point(aes_string(shape = params$shape_by,   # if any of these is null it will still graph
@@ -334,13 +337,11 @@ plot_DR <- function(targetCountMatrix = NULL,
   # Keep legend symbol size consistent
   if(params$colType == "Target") {
     plt <- plt +
-      guides(shape = guide_legend(override.aes = list(size = 4)), 
-             size = guide_legend(title = ttl))
+      guides(shape = guide_legend(override.aes = list(size = 4)))
   } else {
     plt <- plt +
       guides(shape = guide_legend(override.aes = list(size = 4)),
-             color = guide_legend(override.aes = list(size = 4)), 
-             size = guide_legend(title = ttl))
+             color = guide_legend(override.aes = list(size = 4)))
   }
   
   # Add variance estimates to PCA plot
