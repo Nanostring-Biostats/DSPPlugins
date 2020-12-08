@@ -127,7 +127,9 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
   # Size by calculation:
   if(!is.null(size_by)) {
     if(size_by %in% rownames(targetCountMatrix)) {
-      if(size_by == color_by) {
+      if(is.null(color_by)) {
+        segmentAnnotations[[size_by]] <- unlist(targetCountMatrix[size_by, ])
+      } else if(size_by == color_by) {
         trg <- unlist(targetCountMatrix[size_by, ])
         size_by <- paste0(size_by,'_linear')
         segmentAnnotations[[size_by]] <- trg
