@@ -202,11 +202,30 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
       print(vplt)
     }
     dev.off()
-  # Save individual figures for all graphs if not using a PDF
+  } else if(tolower(save_as) == 'svg') {
+    for(plt in names(plt_list)) {
+      svg(file = file.path(outputFolder, 
+                           paste0(save_params, "_", plt, ".svg"),
+                           fsep = .Platform$file.sep),
+          width = 8,
+          height = 6)
+      print(plt_list[[plt]])
+      dev.off()
+      if(plot_type == "PCA") {
+        svg(file = file.path(outputFolder, 
+                             "PCAVariancePlot.svg",
+                             fsep = .Platform$file.sep),
+            width = 8,
+            height = 6)
+        print(vplt)
+        dev.off()
+      }
+    }
+    # Save individual figures for all graphs if not using a PDF
   } else {
     for(plt in names(plt_list)) {
       ggsave(filename = file.path(outputFolder, 
-                                  paste0(save_params, ".",
+                                  paste0(save_params, '_', plt, ".",
                                          tolower(save_as)),
                                   fsep = .Platform$file.sep),
              plot = plt_list[[plt]],
