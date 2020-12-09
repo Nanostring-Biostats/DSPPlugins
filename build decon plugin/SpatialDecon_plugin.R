@@ -184,7 +184,7 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
   addWorksheet(wb, "Scaled abundance scores")
   writeData(wb,
     sheet = "Scaled abundance scores",
-    sweep(res$beta, 1, apply(res$beta, 1, max), "/"),
+    sweep(res$beta, 1, pmax(apply(res$beta, 1, max), min(res$beta[res$beta > 0])), "/"),
     colNames = TRUE, rowNames = TRUE
   )
 
