@@ -11,7 +11,7 @@
 de_results_filename <- "VOLCANO PLOT.txt"
 
 # output format for volcano plot, 
-#   options include: png, jpg, tiff, svg
+#   options include: png, jpg, tiff, svg, pdf, & bmp
 output_format <- "jpg"
 
 ######################## LABELING ######################## 
@@ -41,7 +41,7 @@ gene_list <- NULL #c("IL2RG", "GLUL", "SPIB", "C2")
 pval_thresh <- 0.05
 
 # FDR threshold, default threshold over pval_thresh
-fdr_thresh <- NULL
+fdr_thresh <- 0.01
 
 # Fold Change threshold, if set coloring options will change
 fc_thresh <- 0.5
@@ -54,7 +54,7 @@ label_fc <- FALSE
 font_size <- 8
 
 # Label Font Size
-label_size <- 4
+label_size <- 2
 
 # Font Family
 #   options include: serif, sans, mono
@@ -144,13 +144,19 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder){
   # create volcano plot
   volcanoPlot_results <- plotVolcano(de=de_results)
   
-  ggsave(filename=paste0("volcano_plot_", plot_title, ".", output_format),
-         plot=volcanoPlot_results$plot,
-         device=output_format,
-         path=outputFolder,
-         height=plot_height,
-         width=plot_width)
-  
+  if(output_format == "svg"){
+    svg(filename=paste0(outputFolder, "/volcano_plot_", plot_title, ".", output_format), 
+        width=plot_width, height=plot_height)
+    print(volcanoPlot_results$plot)
+    dev.off()
+  }else{
+    ggsave(filename=paste0("volcano_plot_", plot_title, ".", output_format),
+           plot=volcanoPlot_results$plot,
+           device=output_format,
+           path=outputFolder,
+           height=plot_height,
+           width=plot_width)
+  }
   
   write.table(x=volcanoPlot_results$gene_labels, 
               file=file.path(outputFolder,
@@ -174,7 +180,8 @@ plotVolcano <- function(de){
   
   # find closest FDR value to fdr_thresh and use that pvalue to add y axis cutoff line
   if(!is.null(fdr_thresh)){
-    fdr_pval <- mean(de$Pvalue[which(abs(de$FDR - fdr_thresh) == min(abs(de$FDR - fdr_thresh)))])
+    fdr_pval <- mean(de$Pvalue[which(abs(de$FDR - fdr_thresh) == 
+                                       min(abs(de$FDR - fdr_thresh)))])
   }else{
     fdr_pval <- NULL
   }
@@ -185,9 +192,8 @@ plotVolcano <- function(de){
     labs(y="Pvalue",
          x=paste(negative_label, "<-", "log2(FC)", "->", positive_label, sep=" "),
          title=plot_title)+
-    theme_bw()+
-    # theme(text=element_text(size=font_size, family=font_family), 
-    #       axis. = element_text(family=font_family))+
+    theme_bw(base_size = font_size) +
+    theme(text = element_text(family = font_family))+
     scale_x_continuous(limits=c(-maxFC, maxFC))
   
     # this makes for easier testing if not running in DSPDA, will flip yaxis of graph
@@ -332,9 +338,7 @@ plotVolcano <- function(de){
   
   # add y axis labels 
   ggFigure <- ggFigure + scale_y_continuous(trans=change_axis_revlog_trans(base=10), breaks=as.numeric(yaxis$brk),
-                          labels=yaxis$label)+
-    theme(text=element_text(size=font_size, family=font_family), 
-          axis.title = element_text(family=font_family))
+                          labels=yaxis$label)
 
   colnames(gene_labels) <- c("Target tag", "Target group memership/s", "Target Name", "Log2", 
                              "Pvalue", "Adjusted pvalue", "-log10 pvalue", "-log10 adjusted pvalue",
@@ -460,7 +464,7 @@ testVariableFormats <- function(de=de_results){
   
   # check that font_family is an allowable font
   if(!font_family %in% allowed_fonts){
-    fail(message=paste("Given font_family is not a valid font. Allowed fonts are",
+    fail(message=paste(font_family, "is not a valid font. Allowed fonts are",
                        paste(allowed_fonts, collapse=", ")))
   }
   
@@ -485,7 +489,7 @@ testVariableFormats <- function(de=de_results){
              label=paste("Not enough colors were given./n", max(length(target_groups), 2), 
                          "expected, only", length(color_options), "given"))
   
-  expected_output_format <- c("png", "jpg", "tiff", "svg")
+  expected_output_format <- c("png", "jpg", "tiff", "svg", "pdf", "bmp")
   
   if(!output_format %in% expected_output_format){
     fail(message=paste("Output format not in expected list of formats.\n", output_format, 
