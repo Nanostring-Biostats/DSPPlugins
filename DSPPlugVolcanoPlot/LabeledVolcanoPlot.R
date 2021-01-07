@@ -112,10 +112,10 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder){
   de_results <- read.table(de_results_filename, header=TRUE, sep="\t", stringsAsFactors=FALSE)
   
   #check if header is removed from volcano plot file
-  if(!"Target.Name" %in% colnames(de_results)){
+  if(!"target.name" %in% tolower(colnames(de_results))){
     
     #if header isn't removed in de_results_file then remove header and set column names
-    header <- grep(pattern="Target Name", x=de_results)
+    header <- grep(pattern="target name", x=tolower(de_results))
     
     if(length(header) > 0){
       colnames(de_results) <- de_results[header, ]
@@ -134,6 +134,9 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder){
     de_results$Log2 <- as.numeric(de_results$Log2)
     de_results$Pvalue <- as.numeric(de_results$Pvalue)
   }
+  
+  #ensure consistent capitalization with Target.Name column name
+  colnames(de_results)[which(tolower(colnames(de_results)) == "target.name")] <- "Target.Name"
   
   # test for valid input variables
   testVariableFormats(de=de_results)
