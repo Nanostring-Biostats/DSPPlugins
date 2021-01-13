@@ -1,48 +1,66 @@
+# Dimension Reduction #
+
+# Produces PCA, tSNE, or UMAP visualizations
+# Supports: DSP-nCounter Protein, DSP-nCounter RNA, DSP-NGS CTA
+# Note: this script should be run only on a dataset AFTER normalization
+# Please do not use spaces, special characters, or numbers when adding factors
+# in the DSPDA Annotation file
+
 #        User Options        #
 ##############################
+
 plot_type = "PCA"
 # Options: tSNE, UMAP, PCA
 
 # Plot Parameters
-color_by = "SegmentName"
-# tag, factor, target or NULL
+
+color_by = "ScanName"
+# select factor or target of interest OR NULL
 shape_by = "SegmentName"
-# tag, factor or NULL
-size_by = "CD68"
-# target only or NULL
+# select factor of interest OR NULL
+size_by = NULL
+# to size by a target, replace NULL with target of interest (ex: "CD68")
 
 plot_font = list(family = "sans",
                  size = 15)
 # font families include sans, serif, mono and
 # may include specifically named fonts, but 
-# these may not always render properly.
+# these may not always render.
 
 save_as = "pdf"
 # options: pdf, jpeg, tiff, png, bmp, or svg
 
-plot_colors = list("green3", "cyan3")
-color_levels = c("PanCK-pos", "PanCK-neg")
-# color_levels must match values in the
-# color_by column in the annotations file 
-# when using a tag or a factor. color_levels 
+# customize colors for datapoints
+plot_colors = list("green3", "cyan3", "etc")
+color_levels = c("sample1", "sample2", "etc")
+# color_levels must match the names in the
+# color_by factor column in the DSPDA annotation file 
+# when using the factor of interest. color_levels 
 # may be set to NULL, and the plugin will 
-# automatically assign levels to colors
+# automatically assign levels to the colors.
 #
 # When coloring by a target use "High", "Low" 
 # and "Mid". "Mid" is optional.
+# 
+# for example, if we: color_by = "CD68" then
+# plot_colors = list("red", "white", "blue")
+# color_levels = c("High", "Mid", "Low")
 #
-# the first entry in plot_colors may be set 
+# The first entry in plot_colors may be set 
 # to a r color palette if coloring using 
-# annotations. the palette order shall be 
+# annotations. The palette order shall be 
 # alphabetical unless values of color_by 
 # are provided in color_levels, in which 
-# case that order shall be used
+# case that order shall be used.
 
-##############################
-# Copyright (C) 2020, NanoString Technologies, Inc.
-#    This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
-#    This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
-#    You should have received a copy of the GNU General Public License along with this program.  If not, see https://www.gnu.org/licenses/.
+##########################################################
+#### End of User Inputs. PLEASE DO NOT CHANGE CODE BELOW HERE  ####
+##########################################################
+# MIT License
+# Copyright 2020 Nanostring Technologies, Inc.
+# Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the “Software”), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+# The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+# THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # Contact us: 
 #   NanoString Technologies, Inc.
 #   530 Fairview Avenue N
