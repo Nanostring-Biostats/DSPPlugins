@@ -1,19 +1,23 @@
-# Copyright (C) 2020, NanoString Technologies, Inc.
-#    This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
-#    This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
-#    You should have received a copy of the GNU General Public License along with this program.  If not, see https://www.gnu.org/licenses/.
-# Contact us: # NanoString Technologies, Inc. # 530 Fairview Avenue N # Seattle, WA 98109 # Tel: (888) 358-6266
+# Spatial Deconvolution #
 
+# Produces cell abundance and proportion plots/scores
+# Supports: DSP-NGS CTA
+# Note: this script should be run only on a dataset AFTER normalization
+# Please do not use spaces, special characters, or numbers when adding factors
+# in the DSPDA Annotation file
 
-##########################################################
-####      Arguments to be modified by user            ####
-##########################################################
+#        User Options        #
+##############################
 
-# Cell profile matrix filename:
+# IMPORTANT: please use the appropriate cell profile matrix that represents
+# the tissue type of interest as this will affect the cell abundance/proportion scores
+# The default matrix below is for Solid Tumor GeoMx data.
+
+# Cell profile matrix filename
 cell_profile_filename <- "safeTME-for-tumor-immune.csv"
 
-# annotation column giving pure tumor AOIs
-# (this column must have the value "tumor" for indicate tumor AOIs)
+# factor annotation column giving pure tumor AOIs
+# (this column must have the value "tumor" to indicate tumor AOIs)
 pure_tumor_column_name <- "none"
 
 # define variables to show in heatmaps:
@@ -41,7 +45,7 @@ if (custom_annotation_coloring) {
   # for a list of R colors, see http://www.stat.columbia.edu/~tzheng/files/Rcolor.pdf
 }
 
-# heatmap color scheme:
+# choose heatmap color scheme:
 hmcols <- c("white", "darkblue")
 # alternative heatmap colors:
 # remove the "#" to enable either of these lines:
@@ -51,19 +55,34 @@ hmcols <- c("white", "darkblue")
 # hmcols = c("#440154FF", "#482878FF", "#3E4A89FF", "#31688EFF", "#26828EFF", "#1F9E89FF", "#35B779FF", "#6DCD59FF", "#B4DE2CFF", "#FDE725FF")
 
 
-#### advanced arguments
+#### Advanced User Inputs
 
 heatmaptruncationlimit <- NULL
 pdf_width <- 12
 pdf_height <- 7
-plot_filetype <- "pdf" # could also be "svg" "png"
+plot_filetype <- "pdf" # can also be "svg" or "png"
 subset_of_cells_to_show <- NULL
+# for example, replace NULL with: c("macrophages", "fibroblasts")
 
 
 ##########################################################
-#### end of arguments. DO NOT CHANGE CODE BELOW HERE  ####
+#### End of User Inputs. PLEASE DO NOT CHANGE CODE BELOW HERE  ####
 ##########################################################
+# MIT License
+# Copyright 2020 Nanostring Technologies, Inc.
+# Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the “Software”), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+# The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+# THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+# Contact us: 
+#   NanoString Technologies, Inc.
+#   530 Fairview Avenue N
+#   Seattle, WA 98109
+# Tel: (888) 358-6266
+##############################
 
+##############################
+#        Execution Code      # 
+##############################
 
 library(logNormReg)
 library(pheatmap)
