@@ -463,7 +463,8 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
     xwidth <- (bp[2] - bp[1]) / 2
     for (i in 1:ncol(mat)) {
       rect(bp[i] - xwidth, yrange[2], bp[i] + xwidth, yrange[1],
-        border = NA, col = cols[[name]][segmentAnnotations[match(colnames(mat)[i], segmentAnnotations$segmentID), name]]
+           border = NA, col = cols[[name]][segmentAnnotations[p1$tree_col$order[i], name]]
+           #border = NA, col = cols[[name]][segmentAnnotations[match(colnames(mat)[i], segmentAnnotations$segmentID), name]]
       )
     }
   }
@@ -536,7 +537,8 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
     xwidth <- (bp[2] - bp[1]) / 2
     for (i in 1:ncol(mat)) {
       rect(bp[i] - xwidth, yrange[2], bp[i] + xwidth, yrange[1],
-        border = NA, col = cols[[name]][segmentAnnotations[match(colnames(mat)[i], segmentAnnotations$segmentID), name]]
+           border = NA, col = cols[[name]][segmentAnnotations[p1$tree_col$order[i], name]]
+           #border = NA, col = cols[[name]][segmentAnnotations[match(colnames(mat)[i], segmentAnnotations$segmentID), name]]
       )
     }
   }
