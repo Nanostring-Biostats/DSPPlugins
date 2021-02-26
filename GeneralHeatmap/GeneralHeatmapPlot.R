@@ -23,12 +23,15 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
   fontsize <- 10
   plot_title = "log2 Change from Mean"
   
+  
+  #### Advanced User Inputs
+  
   # set output file type for plot
-  file_type <- "png" # other options:"png", "tiff", "jpeg", "bmp", svg", "pdf"
+  file_type <- "pdf" # other options:"svg", "png", "tiff"
   
   # set aspect ratio of output file
-  height <- 500 # recommend 10 for file_type "svg" or "pdf", and 500 for "png", "tiff", "jpeg", or "bmp"
-  width <- 500 # recommend 10 for file_type "svg" or "pdf", and 500 for "png", "tiff", "jpeg", or "bmp"
+  pdf_width <- 12 
+  pdf_height <- 7 
   
   
   
@@ -38,8 +41,21 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
   targetCountMatrix <- dataset
   rownames(targetCountMatrix) <- targetAnnotations[match(rownames(targetCountMatrix), targetAnnotations[ , "TargetGUID"]), "TargetName"]
   
+  # setup output file
+  if (file_type == "pdf") {
+    pdf(file = file.path(outputFolder, "GeneralHeatmap.pdf", fsep = .Platform$file.sep), width = pdf_width, height = pdf_height)
+  }
+  if (file_type == "svg") {
+    svg(file = file.path(outputFolder, "GeneralHeatmap.svg", fsep = .Platform$file.sep), width = pdf_width, height = pdf_height)
+  }
+  if (file_type == "png") {
+    png(file = file.path(outputFolder, "GeneralHeatmap.png", fsep = .Platform$file.sep), width = pdf_width, height = pdf_height, units = "in", res = 2000)
+  }
+  if (file_type == "tiff") {
+    tiff(file = file.path(outputFolder, "GeneralHeatmap.tiff", fsep = .Platform$file.sep), width = pdf_width, height = pdf_height, units = "in", res = 150)
+  }
+  
   # call plotting function
-  match.fun(file_type)(file.path(outputFolder, paste0("GeneralHeatmap.", file_type), fsep = .Platform$file.sep), width = width, height = height)
   draw_general_heatmap(data = targetCountMatrix,
                        heatmap_colors = heatmap_colors,
                        scale_cutoff = scale_cutoff,
