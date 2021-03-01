@@ -1,5 +1,86 @@
+# General Heatmap #
 
-### function to draw general heatmap plot
+# Produces heatmap with clinical annotations
+# Supports: DSP-NGS CTA
+# Note: 
+# Please do not use spaces, special characters, or numbers when adding factors
+# in the DSPDA Annotation file
+
+##############################
+#        User Options        #
+##############################
+
+# users can modify following arguments - currently set to defaults
+
+
+# define annotations to show in heatmap (optional):
+annotations_to_show <- NULL #e.g. c("TissueType", "Response")
+
+# define coloring of annotations (optional):
+# 1: set the next line to TRUE:
+custom_annotation_colors <- FALSE
+# 2: then modify the example syntax below
+if (custom_annotation_colors) {
+  # example syntax
+  annotation_colors <- list(
+    TissueType = c(
+      "Normal" = "green", 
+      "Disease" = "red"), 
+    Response = c(
+      "NR" = "blue", 
+      "R" = "orange")
+  )
+  # for a list of R colors, see http://www.stat.columbia.edu/~tzheng/files/Rcolor.pdf
+}
+
+# define annotation to use for supervised clustering (optional):
+sort_by <- NULL #e.g. "Response"
+# define order levels should appear in (optional):
+sort_order <- NULL #e.g. c("Unknown", "Responder", "Non-Responder")
+
+
+#### Advanced User Inputs
+
+# choose heatmap color scheme (optional):
+heatmap_colors <- NULL #e.g. c("navy", "white", "firebrick3")
+
+# set heatmap scale (asolute value):
+scale_cutoff <- 3
+
+# set clustering options for unsupervised clustering:
+clustering_distance <- "euclidean" #options: "euclidean", "correlation" (Pearson's), "maximum", "manhattan", "canberra", "binary", or "minkowski"
+scale <- "row" #options: "none", "row", "column"
+
+fontsize <- 10
+plot_title = "log2 Change from Mean"
+
+# set output file type for plot:
+file_type <- "pdf" # other options:"svg", "png", "tiff"
+
+# set aspect ratio of output file:
+pdf_width <- 12 
+pdf_height <- 7 
+
+
+
+##########################################################
+#### End of User Inputs. PLEASE DO NOT CHANGE CODE BELOW HERE  ####
+##########################################################
+# MIT License
+# Copyright 2020 Nanostring Technologies, Inc.
+# Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the “Software”), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+# The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+# THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+# Contact us: 
+#   NanoString Technologies, Inc.
+#   530 Fairview Avenue N
+#   Seattle, WA 98109
+# Tel: (888) 358-6266
+##############################
+
+##############################
+#        Execution Code      # 
+##############################
 
 # dependent libraries
 library(pheatmap)
@@ -7,35 +88,6 @@ library(RColorBrewer)
 
 # main function called by DSP-DA
 main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
-  
-  #### Function Inputs ------------------------------------------------
-  
-  # users can modify following arguments - currently set to defaults
-  
-  heatmap_colors <- NULL #e.g. c("navy", "white", "firebrick3")
-  scale_cutoff <- 3
-  annotations_to_show <- NULL #e.g. c("TissueType", "Response")
-  annotation_colors <- NULL #e.g. list(TissueType = c(Normal = "green", Disease = "red"), Response = c(NR = "blue", R = "orange"))
-  sort_by <- NULL
-  sort_order <- NULL
-  clustering_distance <- "euclidean" #options: "euclidean", "correlation" (Pearson's), "maximum", "manhattan", "canberra", "binary", or "minkowski"
-  scale <- "row" #options: "none", "row", "column"
-  fontsize <- 10
-  plot_title = "log2 Change from Mean"
-  
-  
-  #### Advanced User Inputs
-  
-  # set output file type for plot
-  file_type <- "pdf" # other options:"svg", "png", "tiff"
-  
-  # set aspect ratio of output file
-  pdf_width <- 12 
-  pdf_height <- 7 
-  
-  
-  
-  #### Do not modify below! ------------------------------------------------
   
   # set row names to target names
   targetCountMatrix <- dataset
