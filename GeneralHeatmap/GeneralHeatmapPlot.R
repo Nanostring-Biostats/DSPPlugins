@@ -47,6 +47,10 @@ heatmap_colors <- NULL #e.g. c("navy", "white", "firebrick3")
 # set heatmap scale (asolute value):
 scale_cutoff <- 3
 
+# set whether sample and target names should be shown:
+show_sample_names = FALSE
+show_target_names = FALSE
+
 # set clustering options for unsupervised clustering:
 clustering_distance <- "euclidean" #options: "euclidean", "correlation" (Pearson's), "maximum", "manhattan", "canberra", "binary", or "minkowski"
 scale <- "row" #options: "none", "row", "column"
@@ -118,7 +122,10 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
                        sort_order = sort_order,
                        clustering_distance = clustering_distance,
                        scale = scale,
-                       fontsize = fontsize)
+                       show_sample_names = show_sample_names,
+                       show_target_names = show_target_names,
+                       fontsize = fontsize,
+                       plot_title = plot_title)
   dev.off()
 }
 
@@ -135,6 +142,8 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
 #' @param sort_order list of levels of annotation defined by sort_by in desired order of appearance. optionally defined if sort_by is defined.  If NULL, then default to alphabetical order
 #' @param clustering_distance distance measure used in clustering rows and columns
 #' @param scale passed to pheatmap.  character indicating if the values should be centered and scaled in either the row direction, column direction, or none
+#' @param show_sample_names TRUE or FALSE
+#' @param show_target_names TRUE or FALSE
 #' @param fontsize passed to pheatmap. base fontsize for the plot
 #' @param plot_title title of heatmap
 #' 
@@ -167,6 +176,8 @@ draw_general_heatmap <- function(data = targetCountMatrix,
                                  sort_order = NULL,
                                  clustering_distance = "euclidean", 
                                  scale = "row",
+                                 show_sample_names = FALSE,
+                                 show_target_names = FALSE,
                                  fontsize = 10, 
                                  plot_title = "log2 Change from Mean", ...) {
   
@@ -224,8 +235,8 @@ draw_general_heatmap <- function(data = targetCountMatrix,
                 cellheight = ifelse(nrow(data) < 63, 11, NA),
                 cellwidth = ifelse(ncol(data) < 51, 11, NA),
                 border_color = NA,
-                show_colnames = FALSE,
-                show_rownames = nrow(data) < 63,
+                show_colnames = show_sample_names,
+                show_rownames = show_target_names,
                 annotation_col = annotations,
                 annotation_colors = annotation_colors,
                 gaps_col = gaps_col,
