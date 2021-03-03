@@ -1,16 +1,16 @@
 # Labeled Volcano Plot
 
-# Produces Labeled Volcano Plot
+# Produces a Labeled Volcano Plot
 # Supports: DSP-nCounter Protein, DSP-nCounter RNA, DSP-NGS CTA
-# Note: This script should be run only after Statistical Tests to customize 
-# labels for Volcano plots produced by DSP-DA. Export the data of the resulting 
-# Volcano Plot and save as tab delimited file.
+# Note: this script can be run only after a DSPDA 'Statistical Tests' is performed 
+# Please do not use spaces, special characters, or numbers when naming factors
+# that are used in a statistical test
 
 #        User Options        #
 ##############################
 
 de_results_filename <- "VOLCANO PLOT.txt"
-# volcano plot results (tab delimited)
+# volcano plot results (tab delimited) filename
 
 # Plot Parameters
 
@@ -45,7 +45,6 @@ font_size <- 8
 label_size <- 2
 # Label Font Size
 
-
 font_family <- "sans"
 # options include: serif, sans, mono
 
@@ -69,7 +68,7 @@ color_options <-  c("#3A6CA1", "#FFD861", "#CF4244",
                     "#8F6954")
 
 # Optional Labels
-plot_title <- "AOI Surface Area Comparisons"
+plot_title <- "Enter Title Here"
 # Volcano Plot Title
 
 show_legend <- TRUE
@@ -88,6 +87,7 @@ fc_color <- "grey30"
 #   fdr thresholds. change to the same as default_color
 #   if you don't want these targets called out
 
+# Optional Target labeling
 target_groups <- NULL #c("Hemostasis", "DNA Repair")
 # Specific target groups to color in the plot
 #   If variable is set, genes are colored by given target 
