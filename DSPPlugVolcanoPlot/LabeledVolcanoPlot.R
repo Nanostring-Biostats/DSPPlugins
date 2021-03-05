@@ -1,86 +1,64 @@
-### functions to create labeled volcano plots:
-# note: this code assumes the input of VOLCANO PLOT 
-#       without header and tab delimited
+# Labeled Volcano Plot
 
+# Produces a Labeled Volcano Plot
+# Supports: DSP-nCounter Protein, DSP-nCounter RNA, DSP-NGS CTA
+# Note: this script can be run only after a DSPDA 'Statistical Tests' is performed 
+# Please do not use spaces, special characters, or numbers when naming factors
+# that are used in a statistical test
 
-##########################################################
-####      Arguments to be modified by user            ####
-##########################################################
+#        User Options        #
+##############################
 
-# volcano plot results (tab delimited):
 de_results_filename <- "VOLCANO PLOT.txt"
+# volcano plot results (tab delimited) filename
 
-# output format for volcano plot, 
-#   options include: png, jpg, tiff, svg, pdf, & bmp
+# Plot Parameters
+
 output_format <- "jpg"
+# options: png, jpg, tiff, svg, pdf, & bmp
 
-######################## LABELING ######################## 
-# Volcano Plot Title
-plot_title <- "AOI Surface Area Comparisons"
+######################## LABELING ########################  
 
+negative_label <- "Left Label"
 # Negative (left) label for Fold Change from volcano plot
-negative_label <- "50 um Circle"
 
+positive_label <- "Right Label"
 # Positive (right) label for Fold Change from volcano plot
-positive_label <- "200 um Circle"
 
-# Show color legend on figure
-show_legend <- TRUE
-
-# Number of genes to label
-#   gene_list overrides this variable if set
 n_genes <- 25
+# Number of top genes to label, gene_list overrides this variable if set
 
-# Gene list to label. These genes will get labeled no matter 
-#   where they are in the volcano plot. This variable is 
-#   the default for labeling genes over n_genes
 gene_list <- NULL #c("IL2RG", "GLUL", "SPIB", "C2")
+# genes to label no matter where they are in the volcano plot. This overrides n_genes
 
 ####################### THRESHOLDS #######################
-# P-value threshold, must set fdr_thresh to NULL to use
 pval_thresh <- 0.05
+# P-value threshold, must set fdr_thresh to NULL to use
 
-# FDR threshold, default threshold over pval_thresh
 fdr_thresh <- 0.01
-
-# Fold Change threshold, if set coloring options will change
-fc_thresh <- 0.5
-
-# Should genes below fc_thresh be labeled
-label_fc <- FALSE
+# FDR threshold, default threshold over pval_thresh
 
 ######################### FONTS ##########################
-# Font Size
 font_size <- 8
+# Font Size
 
-# Label Font Size
 label_size <- 2
+# Label Font Size
 
-# Font Family
-#   options include: serif, sans, mono
 font_family <- "sans"
+# options include: serif, sans, mono
 
 ####################### PLOT SIZE ########################
-# Plot Width in inches
 plot_width <- 6
+# Plot Width in inches
 
-# Plot Height in inches
 plot_height <- 4
+# Plot Height in inches
 
 ####################### COLORING #########################
-# Default point color for points not in target groups or
-#   above thresholds
 default_color <- "grey65"
-
-# Color of points below fc_thresh but above pval and/or 
-#   fdr thresholds. change to the same as default_color
-#   if you don't want these targets called out
-fc_color <- "grey30"
-
-# Specific target groups to color in the plot
-#   If variable is set, genes are colored by given target 
-#     group; else genes colored if they are above thresholds
-target_groups <- NULL #c("Hemostasis", "DNA Repair")
+# Default point color for points not in target groups or
+# above thresholds
 
 # Color options for plot. Must have more colors than
 #   number of target groups 
@@ -89,10 +67,51 @@ color_options <-  c("#3A6CA1", "#FFD861", "#CF4244",
                     "#318026", "#A66293", "#F28E2B", 
                     "#8F6954")
 
-##########################################################
-#### end of arguments. DO NOT CHANGE CODE BELOW HERE  ####
-##########################################################
+# Optional Labels
+plot_title <- "Enter Title Here"
+# Volcano Plot Title
 
+show_legend <- TRUE
+# Show color legend on figure
+
+# Optional thresholds
+fc_thresh <- 0.5
+# Fold Change threshold, if set coloring options will change
+
+label_fc <- FALSE
+# Should genes below fc_thresh be labeled
+
+# Optional Color parameters
+fc_color <- "grey30"
+# Color of points below fc_thresh but above pval and/or 
+#   fdr thresholds. change to the same as default_color
+#   if you don't want these targets called out
+
+# Optional Target labeling
+target_groups <- NULL #c("Hemostasis", "DNA Repair")
+# Specific target groups to color in the plot
+#   If variable is set, genes are colored by given target 
+#     group; else genes colored if they are above thresholds
+
+##########################################################
+#### End of User Inputs. PLEASE DO NOT CHANGE CODE BELOW HERE  ####
+##########################################################
+# MIT License
+# Copyright 2020 Nanostring Technologies, Inc.
+# Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the “Software”), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+# The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+# THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+# Contact us: 
+#   NanoString Technologies, Inc.
+#   530 Fairview Avenue N
+#   Seattle, WA 98109
+# Tel: (888) 358-6266
+##############################
+
+##############################
+#        Execution Code      # 
+##############################
+# Libraries:
 library(ggplot2)
 library(ggrepel)
 library(testthat)
@@ -100,7 +119,7 @@ library(scales)
 library(stats)
 library(stringr)
 
-# main function called by DSP-DA:
+# main function 
 main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder){
   
   if(!file.exists(de_results_filename)){
