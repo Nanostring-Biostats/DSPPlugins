@@ -10,6 +10,7 @@
 ### User Inputs ###
 ### ###############
 
+# batching_factor <- "SlideName"
 
 
 
@@ -60,23 +61,32 @@
 ### ############# ###
 
 # Main function used by DSP-DA
-main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
+main <- function(dataset, segmentAnnotations, 
+                 targetAnnotations, outputFolder) {
 
   # Load packages
   load_packages()
   
+  # Check user input
+  check_user_input(batching_factor)
+  
+  # Run batch correction
+  bc <- run_batch_correction(
+    df=dataset,
+    annots=segmentAnnotations,
+    batching_factor=batching_factor
+  )
+  
   # Send dataset to disk
   x <- dataset
   write.table(x, 
-              file = file.path(outputFolder, 
-                    paste0("dataset.tsv"),
-                    fsep = .Platform$file.sep), 
-              sep="\t", col.names=TRUE, row.names=TRUE,
-              quote=FALSE)
+    file = file.path(outputFolder, 
+         paste0("dataset.tsv"),
+         fsep = .Platform$file.sep), 
+    sep="\t", col.names=TRUE,
+    row.names=TRUE, quote=FALSE)
+              
   return(x)
-  
-
-  
   
 }
 
@@ -84,7 +94,7 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
 ### Helper functions ###
 ### ################ ###
 
-# loads packages
+# Loads packages
 load_packages <- function(){
 
   # List of packages for session
@@ -98,6 +108,86 @@ load_packages <- function(){
   null <- lapply(.packages, require, 
                  character.only=TRUE)
 }
+
+# Checks user input
+# @param batching_factor is character provided by user
+# @min_observed is numeric and is the minimum 
+#      number of observation per batch required for
+#      lme4 to work.
+check_user_input <- function(bactching_factor, min_observed=3){
+  
+  pass <- TRUE # passing flag
+  msg <- c() # for an error message to give user
+  
+  # Make sure the batching_factor 
+  # is in segmentAnnotations <error>.
+  if(!(bactching_factor %in% colnames(segmentAnnotations))){
+    pass <- FALSE # hard fail.
+    msg <- c(
+      msg, 
+      paste0("The batching factor provided, ",
+      batching_factor, 
+      " was not found. Please check spelling.\n"
+      ))
+  }
+  # Check if batching_factor, if present, is numeric
+  # and warn user if so.
+  if(pass & inherits(
+      x=segmentAnnotations[,bactching_factor], what=
+      "numeric")
+    ){
+      # still could be meaningful but warn user.
+      msg <- c(
+        msg, 
+        paste0("Warning! The batching factor, ", 
+               bactching_factor, 
+               ", is numeric. Will attempt ", 
+               "to coerce to a factor.\n")
+      )
+  }
+  # Check that the minimum number of
+  # observations is present.
+  if(pass){
+    # at this point, pass means it has
+    # batching_factor as a column. 
+    warning("to do.")
+  }
+  
+  
+  # If there were any messages, send to disk.
+  if(length(msg)>0){
+    write(msg, 
+      file = file.path(outputFolder, 
+            paste0("log.txt"),
+            fsep = .Platform$file.sep))
+  }
+ 
+  # if user input did not pass, 
+  # fail and send user the log.
+  if(!pass){
+    stop(paste0(
+      "Errors found. ", 
+      "Please see log.txt for message(s)."))
+  } else {
+    # return nothing if passed.
+    return(NULL)
+  }
+}
+
+
+# Main batch correction function
+# @param df is dataset
+# @param annots is the annotation data.frame
+# @param batching_factor is the batching factor
+#        specified by the user.
+# @return a data.frame of the same dimensions
+#        as dataset with batch corrected 
+#        results.
+run_batch_correction <- function(
+  df, annots, bactching_factor){
+  
+}
+
 
 ### #####
 ### Notes
