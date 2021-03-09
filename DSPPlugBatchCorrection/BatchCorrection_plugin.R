@@ -10,7 +10,7 @@
 ### User Inputs ###
 ### ###############
 
-# batching_factor <- "SlideName"
+batching_factor <- "SlideName"
 
 
 
@@ -77,16 +77,15 @@ main <- function(dataset, segmentAnnotations,
     batching_factor=batching_factor
   )
   
-  # Send dataset to disk
-  x <- dataset
-  write.table(x, 
+  # Send bc data to disk
+  write.table(bc, 
     file = file.path(outputFolder, 
          paste0("dataset.tsv"),
          fsep = .Platform$file.sep), 
     sep="\t", col.names=TRUE,
     row.names=TRUE, quote=FALSE)
               
-  return(x)
+  return(bc)
   
 }
 
