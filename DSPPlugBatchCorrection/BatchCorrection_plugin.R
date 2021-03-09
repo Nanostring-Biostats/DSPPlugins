@@ -10,8 +10,9 @@
 ### User Inputs ###
 ### ###############
 
-batching_factor <- "SlideName"
-
+# batching_factor <- "SlideName"
+# factors_of_interest <- c("SegmentName", "Tumor") # NULL
+# vif_threshold <- 5
 
 
 ### ###################
@@ -68,13 +69,22 @@ main <- function(dataset, segmentAnnotations,
   load_packages()
   
   # Check user input
-  check_user_input(batching_factor)
+  check_user_input(batching_factor, factors_of_interest)
   
   # Run batch correction
   bc <- run_batch_correction(
     df=dataset,
     annots=segmentAnnotations,
     batching_factor=batching_factor
+  )
+  
+  # Run the main QC function
+  run_qc(
+    df=dataset,
+    bdf=bc,
+    annots=segmentAnnotations,
+    batching_factor=batching_factor,
+    factors_of_interest=factors_of_interest
   )
   
   # Send bc data to disk
@@ -110,10 +120,10 @@ load_packages <- function(){
 
 # Checks user input
 # @param batching_factor is character provided by user
-# @min_observed is numeric and is the minimum 
-#      number of observation per batch required for
-#      lme4 to work.
-check_user_input <- function(bactching_factor, min_observed=3){
+# @param factors_of_interest is NULL or a vector specifying
+#        the column names of factors to compare with 
+#        batch.
+check_user_input <- function(bactching_factor, factors_of_interest){
   
   pass <- TRUE # passing flag
   msg <- c() # for an error message to give user
@@ -143,6 +153,23 @@ check_user_input <- function(bactching_factor, min_observed=3){
                ", is numeric. Will attempt ", 
                "to coerce to a factor.\n")
       )
+  }
+
+  # if factors of interest are specified, 
+  # go through each one and verify there's
+  # a column name in segmentAnnottaions.
+  if(!is.null(factors_of_interest)){
+    for(i in factors_of_interest){
+      if(!(i %in% colnames(segmentAnnotations))){
+        pass <- FALSE # hard fail.
+        msg <- c(
+          msg, 
+          paste0("The factor \'",
+                 i, 
+                 "\' was not found. Please check spelling or set factors_of_interest to NULL.\n"
+          ))
+      }
+    }
   }
 
   # If there were any messages, send to disk.
@@ -244,6 +271,24 @@ run_batch_correction <- function(
   resid_df <- as.data.frame(resid_df)
   return(resid_df)
 }
+
+#' @title run_qc
+#' @description: main qc wrapper function. Calls lower-level qc functions
+#' @param: df = dataset
+#' @param: bdf = batch corrected data from run_batch_correction()
+#' @param: annots = segmentAnnotations
+#' @param: batching_factor = the factor used for batch effects
+#' @param: factors_of_interest either NULL of a vector of 
+#'         possibly collinear independent variables for which
+#'         QC comparison with batching_factor are to be made.
+#' @return: an excel workbook that comprises the QC metrics.
+
+run_qc <- function(df, bdf, annots, batching_factor, factors_of_interest){
+  
+}
+
+
+
 
 
 ### #####
