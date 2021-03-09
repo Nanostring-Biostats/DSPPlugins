@@ -189,7 +189,7 @@ run_batch_correction <- function(
   }
   
   # Create clusters and export
-  cl <- makeCluster(n_processors)
+  cl <- makeCluster(n_process)
   clusterExport(cl=cl, 
     varlist=c("df", "annots", 
       'batching_factor'),
