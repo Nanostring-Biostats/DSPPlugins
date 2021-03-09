@@ -145,15 +145,7 @@ check_user_input <- function(bactching_factor, min_observed=3){
                "to coerce to a factor.\n")
       )
   }
-  # Check that the minimum number of
-  # observations is present.
-  if(pass){
-    # at this point, pass means it has
-    # batching_factor as a column. 
-    warning("to do.")
-  }
-  
-  
+
   # If there were any messages, send to disk.
   if(length(msg)>0){
     write(msg, 
@@ -180,12 +172,77 @@ check_user_input <- function(bactching_factor, min_observed=3){
 # @param annots is the annotation data.frame
 # @param batching_factor is the batching factor
 #        specified by the user.
+# @param n_process is the number of processors
+#        to use. Defaults to 2 unless specified.
 # @return a data.frame of the same dimensions
 #        as dataset with batch corrected 
 #        results.
 run_batch_correction <- function(
-  df, annots, bactching_factor){
+  df, annots, batching_factor, 
+  n_process=2){
   
+  # advanced: 
+  # set n_process to n_processors if
+  # in the global environment.
+  if("n_processors" %in% ls()){
+    n_process <- n_processors
+  }
+  
+  # Create clusters and export
+  cl <- makeCluster(n_processors)
+  clusterExport(cl=cl, 
+    varlist=c("df", "annots", 
+      'batching_factor'),
+    envir=environment())
+  
+  # Go through each feature by index.
+  resid_list <- parLapply(
+    cl, 
+    1:nrow(df), function(i){
+    require(lme4) # loaded in cluster
+    require(tibble)
+    
+    # Pivot data for feature i
+    # and combine with annot's batching_factor
+    model_df <- t(log2(df[i,]))
+    colnames(model_df)[1] <- "feature_i" # readability
+    model_df <- add_column(
+      as_tibble(model_df),
+      "segmentID"=row.names(model_df), 
+      .before=1)
+    model_df <- base::merge(
+      model_df, 
+      annots[,c("segmentID", 
+        batching_factor)],
+      by="segmentID")
+    
+    # Run model
+    the_formula = paste0(
+      'feature_i ~ -1 + (1|', 
+      batching_factor,
+      ')')
+    mod <- lme4::lmer(
+      as.formula(the_formula), 
+      data=model_df)
+    
+    # Get residuals and return
+    out <- matrix(
+      as.numeric(resid(mod)), nrow=1)
+    colnames(out) <- model_df$segmentID
+    row.names(out) <- row.names(df)[i]
+    return(out)
+  })
+  
+  # Stop cluster and rbind
+  stopCluster(cl)
+  resid_df <- do.call(rbind, resid_list)
+  
+  # Make sure rows and columns 
+  # are aligned compared to 
+  # df and return.
+  resid_df <- resid_df[rownames(df),]
+  resid_df <- resid_df[,colnames(df)]
+  return(resid_df)
 }
 
 
@@ -196,7 +253,7 @@ run_batch_correction <- function(
 # dataset has features (rows) by (samples)
 # columns. These features and columns
 # are referenced by alphanumeric strings
-# and need may need to be tranlated.
+# and need may need to be translated.
 
 # Column names in the `dataset` object 
 # correspond to rows in the `SegmentID`
