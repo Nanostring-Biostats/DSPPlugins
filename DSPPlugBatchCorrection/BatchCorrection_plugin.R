@@ -238,9 +238,10 @@ run_batch_correction <- function(
   
   # Make sure rows and columns 
   # are aligned compared to 
-  # df and return.
+  # df, make into data.frame, and return.
   resid_df <- resid_df[rownames(df),]
   resid_df <- resid_df[,colnames(df)]
+  resid_df <- as.data.frame(resid_df)
   return(resid_df)
 }
 
