@@ -10,10 +10,34 @@
 ### User Inputs ###
 ### ###############
 
+## Statistical parameters
+# The batching factor (required)
 # batching_factor <- "SlideName"
+# factors of biological interest
+# to check for collinearity (or NULL)
 # factors_of_interest <- c("SegmentName", "Tumor") # NULL
+# The tolerance (1 or greater)
 # vif_threshold <- 5
 
+## Plot parameters
+# color plots by one of these three:
+# - "batching_factor"
+# - "factors_of_interest"
+# - NULL
+color_by = "batching_factor"
+# shape plots by one of these three:
+# - "batching_factor"
+# - "factors_of_interest"
+# - NULL
+shape_by = "factors_of_interest"
+# size points by "PC3" or NULL
+size_by = NULL
+# font family and axes and label
+# size
+plot_font = list(
+  family = "sans",
+  size = 15
+  )
 
 ### ###################
 ### End User Inputs ###
@@ -68,9 +92,10 @@ main <- function(dataset, segmentAnnotations,
   # Load packages
   load_packages()
   
-  # Check user input
-  check_user_input(batching_factor, factors_of_interest)
-  
+  # Check user inputs
+  check_user_input(batching_factor, factors_of_interest, color_by,
+                   shape_by, size_by, plot_font)
+
   # Run batch correction
   bc <- run_batch_correction(
     df=dataset,
@@ -124,9 +149,10 @@ load_packages <- function(){
 # @param factors_of_interest is NULL or a vector specifying
 #        the column names of factors to compare with 
 #        batch.
-check_user_input <- function(bactching_factor, factors_of_interest){
+check_user_input <- function(batching_factor, factors_of_interest, color_by,
+                             shape_by, size_by, plot_font){
   
-  pass <- TRUE # passing flag
+  pass <- TRUE # passing flag that cascades down the function
   msg <- c() # for an error message to give user
   
   # Make sure the batching_factor 
@@ -173,6 +199,83 @@ check_user_input <- function(bactching_factor, factors_of_interest){
     }
   }
 
+  # Check that color_by is a valid
+  if(!is.null(color_by)){
+    if(!color_by %in% c("batching_factor", "factors_of_interest")){
+      pass <- FALSE
+      msg <- c(
+        msg, 
+        paste0("The color_by parameter given, \'",
+               color_by, 
+               "\', is not NULL or \'batching_factor'", 
+               " or \'factors_of_interest\'. Please specify one of these three.\n"
+        ))
+    }
+  }
+  
+  # Check that shape_by is a valid
+  if(!is.null(shape_by)){
+    if(!shape_by %in% c("batching_factor", "factors_of_interest")){
+      pass <- FALSE
+      msg <- c(
+        msg, 
+        paste0("The shape_by parameter given, \'",
+               shape_by, 
+               "\', is not NULL or \'batching_factor'", 
+               " or \'factors_of_interest\'. Please specify one of these three.\n"
+        ))
+    }
+  }
+  
+  # Check that size_by is a valid
+  if(!is.null(size_by)){
+    if(!size_by %in% c("PC3")){
+      pass <- FALSE
+      msg <- c(
+        msg, 
+        paste0("The size_by parameter given, \'",
+               size_by, 
+               "\', is not NULL or \'PC3\'.", 
+               " Please specify NULL or \'PC3\'.\n"
+        ))
+    }
+  }
+
+  ## Check that the plot_font object is valid
+  # It must be a list of length two with names
+  # 'family' and 'size'. 'family must be a valid 
+  # font family and size must be numeric and >0.
+  if(!inherits(plot_font, "list")){
+    pass <- FALSE
+    msg <- c(
+      msg, 
+      paste0("The plot_font parameter must be a list.\n"
+      ))
+  } else if(length(plot_font)!=2){
+    # error: it must be of length two: family, size
+    pass <- FALSE
+    msg <- c(
+      msg, 
+      paste0("plot_font must be a list of length two: family, size.\n"
+      ))
+  } else if(!all(names(plot_font) %in% c("family", "size"))){
+    # error: names need to be family and size only.
+    pass <- FALSE
+    msg <- c(
+      msg, 
+      paste0("plot_font must be a list with names \'family\' and \'size\'.\n"
+      ))
+  }
+  
+  # size points by "PC3" or NULL
+  size_by = NULL
+  # font family and axes and label
+  # size
+  plot_font = list(
+    family = "sans",
+    size = 15
+  )
+  
   # If there were any messages, send to disk.
   if(length(msg)>0){
     write(msg, 
@@ -274,7 +377,7 @@ run_batch_correction <- function(
 }
 
 #' @title run_qc
-#' @description: main qc wrapper function. Calls lower-level qc functions
+#' @description: main qc wrapper function. Calls lower-level qc functions.
 #' @param: df = dataset
 #' @param: bdf = batch corrected data from run_batch_correction()
 #' @param: annots = segmentAnnotations
@@ -295,8 +398,9 @@ run_qc <- function(df, bdf, annots, batching_factor, factors_of_interest){
   pca_nbc <- compute_pca(exp_data=df, log2_transform=TRUE)
   wb <- write_pca_results(the_wb=wb, pca_data=pca_nbc, the_name="Before BC")
   # Plot data
-  wb <- plot_pca_data(the_wb=wb, pca_data=pca_nbc, the_name="Before BC", 
-                      batching_factor, factors_of_interest)
+  wb <- plot_pca_data(the_wb=wb, pca_data=pca_nbc, annots=annots, the_name="Before BC", 
+                      batching_factor=batching_factor, 
+                      factors_of_interest=factors_of_interest)
   
   
   # PCA on batch-corrected (bc) data and write results
@@ -316,7 +420,7 @@ run_qc <- function(df, bdf, annots, batching_factor, factors_of_interest){
 }
 
 #' @title compute_pca
-#' @description lower-level, generic function to run PCA.
+#' @description lower-level function to run PCA.
 #' @param exp_data a data.frame of expression data with column names equal to samples.
 #' @param log2_transform logical whether to log2 transform the data (default) or not. 
 #' @return and object of class prcomp giving the PCA results.
@@ -330,7 +434,7 @@ compute_pca <- function(exp_data, log2_transform=TRUE){
 }
 
 #' @title write_pca_results
-#' @description writes PCA results give PCA data and name
+#' @description writes PCA results given PCA data and name
 #' @param the_wb an object of class Workbook 
 #' @param pca_data the PCA data
 #' @param the_name a char string given the name for prepending to sheet name
@@ -373,13 +477,33 @@ write_pca_results <- function(the_wb, pca_data, the_name){
 #' @description plots PCA results and overlays batching_factor and factors_of_interest, if applicable
 #' @param the_wb an object of class Workbook 
 #' @param pca_data the PCA data
+#' @param annots the segmentAnnotations
 #' @param the_name a char string given the name for prepending to sheet name
 #' @details Uses interaction in ggplot2 to color the points
 #' @return an object of class Workbook
-plot_pca_data <- function(the_wb, pca_data, the_name, 
+plot_pca_data <- function(the_wb, pca_data, annots, the_name, 
                     batching_factor, factors_of_interest){
   
   # to do. build out function to plot PC values and compute VIF values
+  # goal: write the data for making the figure to a sheet, insert the plot, 
+  #       and add a sheet summarizing the VIFs.
+  
+  # Pivot and Merge first 3 values to annotations' batch
+  #   factor and factors of interest (if applicable)
+  plot_df <- pca_data$x[,1:3]
+  plot_df <- add_column(
+    as_tibble(plot_df),
+    "segmentID"=row.names(plot_df), 
+    .before=1)
+  plot_df <- base::merge(
+    annots[,c("segmentID", batching_factor, eval(factors_of_interest))],
+    plot_df,
+    by="segmentID"
+  )
+  return(dim(plot_df))
+  
+  
+  
   
 }
 
