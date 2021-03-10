@@ -24,20 +24,20 @@
 # - "batching_factor"
 # - "factors_of_interest"
 # - NULL
-color_by = "batching_factor"
+# color_by = "batching_factor"
 # shape plots by one of these three:
 # - "batching_factor"
 # - "factors_of_interest"
 # - NULL
-shape_by = "factors_of_interest"
+# shape_by = "factors_of_interest"
 # size points by "PC3" or NULL
-size_by = NULL
+# size_by = NULL
 # font family and axes and label
 # size
-plot_font = list(
-  family = "sans",
-  size = 15
-  )
+# plot_font = list(
+#   family = "sans",
+#   size = 15
+#   )
 
 ### ###################
 ### End User Inputs ###
@@ -136,7 +136,8 @@ load_packages <- function(){
     "lme4", # mixed models
     "parallel", # multiple processors
     "rlang", # tunneling data-variables
-    "openxlsx" # for spreadsheets
+    "openxlsx", # for spreadsheets
+    "ggplot2" # for plotting
   )
 
   # Load packages into session 
@@ -157,7 +158,7 @@ check_user_input <- function(batching_factor, factors_of_interest, color_by,
   
   # Make sure the batching_factor 
   # is in segmentAnnotations <error>.
-  if(!(bactching_factor %in% colnames(segmentAnnotations))){
+  if(!(batching_factor %in% colnames(segmentAnnotations))){
     pass <- FALSE # hard fail.
     msg <- c(
       msg, 
@@ -169,14 +170,14 @@ check_user_input <- function(batching_factor, factors_of_interest, color_by,
   # Check if batching_factor, if present, is numeric
   # and warn user if so.
   if(pass & inherits(
-      x=segmentAnnotations[,bactching_factor], what=
+      x=segmentAnnotations[,batching_factor], what=
       "numeric")
     ){
       # still could be meaningful but warn user.
       msg <- c(
         msg, 
         paste0("Warning! The batching factor, ", 
-               bactching_factor, 
+               batching_factor, 
                ", is numeric. Will attempt ", 
                "to coerce to a factor.\n")
       )
@@ -227,6 +228,25 @@ check_user_input <- function(batching_factor, factors_of_interest, color_by,
     }
   }
   
+  # Make sure that shape_by has 6 or fewer values (default for ggplot)
+  if(!is.null(shape_by)){
+    if(length(factors_of_interest)==1){
+      the_values <- unique(segmentAnnotations[,factors_of_interest])
+    } else {
+      the_values <- unique(apply(segmentAnnotations[,factors_of_interest], 1, paste, collapse="."))
+    }
+    if(length(the_values)>6){
+      pass <- FALSE
+      msg <- c(
+        msg, 
+        paste0("The shape_by parameter specified has ",
+               length(the_values), 
+               " combinations of values which is more than the maximum allowed.\n")
+        )
+    }
+  }
+  
+  
   # Check that size_by is a valid
   if(!is.null(size_by)){
     if(!size_by %in% c("PC3")){
@@ -245,6 +265,7 @@ check_user_input <- function(batching_factor, factors_of_interest, color_by,
   # It must be a list of length two with names
   # 'family' and 'size'. 'family must be a valid 
   # font family and size must be numeric and >0.
+  fonts_allowed <- c("sans") # acceptable fonts
   if(!inherits(plot_font, "list")){
     pass <- FALSE
     msg <- c(
@@ -265,16 +286,30 @@ check_user_input <- function(batching_factor, factors_of_interest, color_by,
       msg, 
       paste0("plot_font must be a list with names \'family\' and \'size\'.\n"
       ))
+  } else if(!plot_font$family %in% fonts_allowed){
+    # error: the font specified is not in the tested fonts
+    pass <- FALSE
+    msg <- c(
+      msg, 
+      paste0("plot font family must be in the following list: ",
+      paste(fonts_allowed, collapse=", "), 
+      ".\n"
+      ))
+  } else if(!inherits(plot_font$size, "numeric")){
+    # error: font size needs to be numeric
+    pass <- FALSE
+    msg <- c(
+      msg, 
+      paste0("plot font size must be a number >0.\n"
+      ))   
+  } else if(!plot_font$size > 0){
+    # error: font size needs to be numeric
+    pass <- FALSE
+    msg <- c(
+      msg, 
+      paste0("plot font size must be larger than 0.\n"
+      ))   
   }
-  
-  # size points by "PC3" or NULL
-  size_by = NULL
-  # font family and axes and label
-  # size
-  plot_font = list(
-    family = "sans",
-    size = 15
-  )
   
   # If there were any messages, send to disk.
   if(length(msg)>0){
@@ -385,10 +420,9 @@ run_batch_correction <- function(
 #' @param: factors_of_interest either NULL of a vector of 
 #'         possibly collinear independent variables for which
 #'         QC comparison with batching_factor are to be made.
-#' @return: an excel workbook that comprises the QC metrics.
-
+#' @return: NULL. Results sent to disk.
 run_qc <- function(df, bdf, annots, batching_factor, factors_of_interest){
-  require(openxlsx)
+  
   # Instantiate spreadsheet
   wb <- createWorkbook(title = paste("Batch Correction QC"), 
                        creator = "NanoString DSP Plugin")
@@ -398,15 +432,33 @@ run_qc <- function(df, bdf, annots, batching_factor, factors_of_interest){
   pca_nbc <- compute_pca(exp_data=df, log2_transform=TRUE)
   wb <- write_pca_results(the_wb=wb, pca_data=pca_nbc, the_name="Before BC")
   # Plot data
-  wb <- plot_pca_data(the_wb=wb, pca_data=pca_nbc, annots=annots, the_name="Before BC", 
+  nbc_plot_list <- plot_pca_data(the_wb=wb, pca_data=pca_nbc, annots=annots, the_name="Before BC", 
                       batching_factor=batching_factor, 
                       factors_of_interest=factors_of_interest)
+  wb <- nbc_plot_list[[1]]
+  nbc_pca_plot <- nbc_plot_list[[2]]
   
-  
+  ## Batch corrected (bc) data
   # PCA on batch-corrected (bc) data and write results
   pca_bc <- compute_pca(exp_data=df, log2_transform=FALSE)
   wb <- write_pca_results(the_wb=wb, pca_data=pca_bc, the_name="After BC")
+  # Plot data
+  bc_plot_list <- plot_pca_data(the_wb=wb, pca_data=pca_bc, annots=annots, the_name="After BC", 
+                      batching_factor=batching_factor, 
+                      factors_of_interest=factors_of_interest)
+  wb <- bc_plot_list[[1]]
+  bc_pca_plot <- bc_plot_list[[2]]
   
+  # Compare nbc and bc datasets
+  wb <- compare_batch_correction(
+    the_wb=wb, 
+    pca_nbc=pca_nbc, 
+    pca_bc=pca_bc,
+    batching_factor=batching_factor, 
+    factors_of_interest=factors_of_interest, 
+    nbc_pca_plot=nbc_pca_plot,
+    bc_pca_plot=bc_pca_plot
+  )
   
   # Save workbook to disk
   saveWorkbook(wb = wb,
@@ -414,8 +466,8 @@ run_qc <- function(df, bdf, annots, batching_factor, factors_of_interest){
       paste0("batch_correction_QC.xlsx"),
       fsep = .Platform$file.sep), overwrite = TRUE)
   
-  # return the workbook
-  return(wb)
+  # Sends all QC to disk
+  return(NULL)
   
 }
 
@@ -479,8 +531,9 @@ write_pca_results <- function(the_wb, pca_data, the_name){
 #' @param pca_data the PCA data
 #' @param annots the segmentAnnotations
 #' @param the_name a char string given the name for prepending to sheet name
-#' @details Uses interaction in ggplot2 to color the points
-#' @return an object of class Workbook
+#' @details Note: this function calls several objects in global scope:
+#'          
+#' @return list of Workbook and plot
 plot_pca_data <- function(the_wb, pca_data, annots, the_name, 
                     batching_factor, factors_of_interest){
   
@@ -500,15 +553,192 @@ plot_pca_data <- function(the_wb, pca_data, annots, the_name,
     plot_df,
     by="segmentID"
   )
-  return(dim(plot_df))
   
+  # Copy of "simplified" plot_df to return to Workbook
+  plot_df_to_return <- plot_df
+  
+  # Add static column names, if applicable, to be referenced by 
+  # ggplot directly.
+  if(!is.null(color_by)){
+    if(color_by=="batching_factor"){
+      plot_df$the_color <- plot_df[,batching_factor]
+    } else if(color_by=="factors_of_interest"){
+      # This can be one or more factors.
+      if(length(factors_of_interest)==1){
+        plot_df$the_color <- plot_df[,factors_of_interest]
+      } else {
+        plot_df$the_color <- apply(plot_df[,factors_of_interest], 1, paste, collapse=".")
+      }
+    } else {
+      stop("Unexpected color_by found. Error 1.")
+    }
+  }
+  # Same as above but for shape
+  if(!is.null(shape_by)){
+    if(shape_by=="batching_factor"){
+      plot_df$the_shape <- plot_df[,batching_factor]
+    } else if(shape_by=="factors_of_interest"){
+      # This can be one or more factors.
+      if(length(factors_of_interest)==1){
+        plot_df$the_shape <- plot_df[,factors_of_interest]
+      } else {
+        plot_df$the_shape <- apply(plot_df[,factors_of_interest], 1, paste, collapse=".")
+      }
+    } else {
+      stop("Unexpected color_by found. Error 2.")
+    }
+  } 
+  # Similar to above but for size_by
+  if(!is.null(size_by)){
+    plot_df$the_size <- plot_df[,size_by]
+  }  
+  
+  # Basic plot
+  plt <- ggplot(data=plot_df, 
+    aes(x=PC1, y=PC2)) 
+  # Add conditional geom_point layer
+  plt <- get_condiontal_geom_point(p=plt,
+                            col_logic=ifelse(is.null(color_by), FALSE, TRUE), 
+                            shp_logic=ifelse(is.null(shape_by), FALSE, TRUE),
+                            siz_logic=ifelse(is.null(size_by), FALSE, TRUE))
+  # Add variation explained for axes and dress plot
+  var_explained <- t(summary(pca_data)$importance)[1:2,'Proportion of Variance']
+  var_explained <- paste0(round(as.numeric(var_explained)*100,1), "%")
+  plt <- plt + 
+    xlab(paste0("PC1 (", var_explained[1], ")")) + 
+    ylab(paste0("PC2 (", var_explained[2], ")")) + 
+    theme_bw() + 
+    theme(axis.title.x = element_text(angle=0, family=plot_font$family, size=plot_font$size),
+          axis.title.y = element_text(angle=90, family=plot_font$family, size=plot_font$size)) + 
+    ggtitle(label=the_name)
+  
+  # Add data and figure to Workbook
+  sheet_name <- paste0(the_name, " - PC Plot")
+  addWorksheet(the_wb, sheet_name)
+  writeData(wb = the_wb,
+            sheet = sheet_name, 
+            x = plot_df_to_return, # i.e., simplified
+            colNames = TRUE, rowNames = FALSE)
+  setColWidths(wb = the_wb, sheet = sheet_name, cols = 1:ncol(plot_df), widths = "auto")
+  
+  # Add plot
+  print(plt) # must print
+  insertPlot(wb=the_wb, sheet = sheet_name, width = 5, height = 3.5, fileType = "png", units = "in")
+  
+  # return the Workbook object
+  return(list(the_wb, plt))
+  
+}
+
+
+#' @title get_condiontal_geom_point
+#' @description Get the geom_point given conditionals
+#' @param p the basic ggplot object to build upon
+#' @param col_logic logical whether color is an aes.
+#' @param shp_logic logical whether shape is an aes.
+#' @param siz_logic logical whether size is an aes.
+#' @details This is a lower level function called within plot_pca_data. 
+#'          There are 2^3 different plotting possibilities. This function
+#'          returns one of the 8 geom_point combinations.
+#' @seealso \code{plot_pca_data}
+#' @return a ggplot object with plotting aes.
+get_condiontal_geom_point <- function(p, col_logic, shp_logic, siz_logic){
+  if(col_logic){
+    if(shp_logic){
+      if(siz_logic){
+        out <- p + geom_point(aes(color=the_color, shape=the_shape, size=the_size), alpha=0.7) +
+          labs(color = paste0(get(color_by), collapse="."), shape=paste0(get(shape_by), collapse="."), size=size_by)
+      } else {
+        out <- p + geom_point(aes(color=the_color, shape=the_shape), alpha=0.7) + 
+          labs(color = paste0(get(color_by), collapse="."), shape=paste0(get(shape_by), collapse="."))
+      }
+    } else {
+      if(siz_logic){
+        out <- p + geom_point(aes(color=the_color, size=the_size), alpha=0.7) +
+          labs(color = paste0(get(color_by), collapse="."), size=size_by)
+      } else {
+        out <- p + geom_point(aes(color=the_color), alpha=0.7) +
+          labs(color = paste0(get(color_by), collapse="."))
+      }
+    }
+  } else {
+    if(shp_logic){
+      if(siz_logic){
+        out <- p + geom_point(aes(shape=the_shape, size=the_size), alpha=0.7) +
+          labs(shape=paste0(get(shape_by), collapse="."), size=size_by)        
+      } else {
+        out <- p + geom_point(aes(shape=the_shape), alpha=0.7) +
+          labs(shape=paste0(get(shape_by), collapse="."))
+      }
+    } else {
+      if(siz_logic){
+        out <- p + geom_point(aes(size=the_size), alpha=0.7) +
+          labs(size=size_by)
+      } else {
+        out <- p + geom_point(alpha=0.7)
+      }
+    }      
+  }
+  
+  return(out)
+}
+
+#' @title compare_batch_correction
+#' @description compares VIFs between the two models
+#' @param the_wb the Workbook to append to
+#' @param pca_nbc the prcomp object without batch correction data
+#' @param pca_bc the prcomp object with batch correction data
+#' @param batching_factor the batching_factor
+#' @param factors_of_interest the factors_of_interest
+#' @param nbc_pca_plot a ggplot2 object of the non-batch corrected data
+#' @param bc_pca_plot a ggplot2 object of the batch corrected data
+#' @details Compares the variance inflation factors for each model. 
+#'          This uses the vif_threshold in the global environment to flag.
+#' @return the updated Workbook with the comparisons sheet (if applicable)
+compare_batch_correction <- function(the_wb, pca_nbc, 
+        pca_bc, batching_factor, factors_of_interest,
+        nbc_pca_plot, bc_pca_plot){
+  
+  # If there are no factors_of_interest, return the unaltered Workbook
+  if(is.null(factors_of_interest)){
+    return(the_wb)
+  } else {
+    ## Create 2 data.frames to compare
+    # Non-batch-corrected
+    nbc_df <- pca_nbc$x[,1:3]
+    nbc_df <- add_column(
+      as_tibble(nbc_df),
+      "segmentID"=row.names(nbc_df), 
+      .before=1)
+    nbc_df <- base::merge(
+      annots[,c("segmentID", batching_factor, eval(factors_of_interest))],
+      nbc_df,
+      by="segmentID"
+    )
+    # Batch-corrected
+    bc_df <- pca_bc$x[,1:3]
+    bc_df <- add_column(
+      as_tibble(bc_df),
+      "segmentID"=row.names(bc_df), 
+      .before=1)
+    bc_df <- base::merge(
+      annots[,c("segmentID", batching_factor, eval(factors_of_interest))],
+      bc_df,
+      by="segmentID"
+    )
+    
+    
+    
+  }
+  
+
   
   
   
 }
 
-print(p1)
-insertPlot(wb=the_wb, pcs_name, width = 5, height = 3.5, fileType = "png", units = "in")
+
+
 
 
 
