@@ -110,7 +110,8 @@ load_packages <- function(){
   .packages = c(
     "lme4", # mixed models
     "parallel", # multiple processors
-    "rlang" # tunneling data-variables
+    "rlang", # tunneling data-variables
+    "openxlsx" # for spreadsheets
   )
 
   # Load packages into session 
@@ -284,10 +285,106 @@ run_batch_correction <- function(
 #' @return: an excel workbook that comprises the QC metrics.
 
 run_qc <- function(df, bdf, annots, batching_factor, factors_of_interest){
+  require(openxlsx)
+  # Instantiate spreadsheet
+  wb <- createWorkbook(title = paste("Batch Correction QC"), 
+                       creator = "NanoString DSP Plugin")
+  
+  ## Non-batch-corrected (nbc) data
+  # PCA data and write results
+  pca_nbc <- compute_pca(exp_data=df, log2_transform=TRUE)
+  wb <- write_pca_results(the_wb=wb, pca_data=pca_nbc, the_name="Before BC")
+  # Plot data
+  wb <- plot_pca_data(the_wb=wb, pca_data=pca_nbc, the_name="Before BC", 
+                      batching_factor, factors_of_interest)
+  
+  
+  # PCA on batch-corrected (bc) data and write results
+  pca_bc <- compute_pca(exp_data=df, log2_transform=FALSE)
+  wb <- write_pca_results(the_wb=wb, pca_data=pca_bc, the_name="After BC")
+  
+  
+  # Save workbook to disk
+  saveWorkbook(wb = wb,
+    file = file.path(outputFolder,
+      paste0("batch_correction_QC.xlsx"),
+      fsep = .Platform$file.sep), overwrite = TRUE)
+  
+  # return the workbook
+  return(wb)
   
 }
 
+#' @title compute_pca
+#' @description lower-level, generic function to run PCA.
+#' @param exp_data a data.frame of expression data with column names equal to samples.
+#' @param log2_transform logical whether to log2 transform the data (default) or not. 
+#' @return and object of class prcomp giving the PCA results.
+compute_pca <- function(exp_data, log2_transform=TRUE){
+  if(log2_transform){
+    dr_data <- stats::prcomp(t(log2(exp_data)), center=TRUE, scale. = TRUE)
+  } else {
+    dr_data <- stats::prcomp(t(exp_data), center=TRUE, scale. = TRUE)
+  }
+  return(dr_data)
+}
 
+#' @title write_pca_results
+#' @description writes PCA results give PCA data and name
+#' @param the_wb an object of class Workbook 
+#' @param pca_data the PCA data
+#' @param the_name a char string given the name for prepending to sheet name
+#' @details This function adds PCs (one for each sample), PC loadings
+#' @return an object of class Workbook with the new sheets
+write_pca_results <- function(the_wb, pca_data, the_name){
+  
+  # Add All PCs for each sample
+  pcs_name <- paste0(the_name, " - PCs (All)")
+  addWorksheet(the_wb, pcs_name)
+  writeData(wb = the_wb,
+            sheet = pcs_name,
+            x = pca_data$x,
+            colNames = TRUE, rowNames = TRUE)
+  setColWidths(wb = the_wb, sheet = pcs_name, cols = 1, widths = "auto")
+
+    # Add PC loadings
+  loadings_name <- paste0(the_name, " - PCs Loadings")
+  addWorksheet(the_wb, loadings_name)
+  writeData(wb = the_wb,
+            sheet = loadings_name,
+            x = pca_data$rotation[order(abs(pca_data$rotation[, 1]), decreasing = TRUE), ],
+            colNames = TRUE, rowNames = TRUE)
+  setColWidths(wb = the_wb, sheet = loadings_name, cols = 1, widths = "auto")
+  
+  # Add variance estimates
+  var_name <- paste0(the_name, " - Var. Est.")
+  addWorksheet(the_wb, var_name)
+  writeData(wb = the_wb,
+            sheet = var_name, 
+            x = t(summary(pca_data)$importance),
+            colNames = TRUE, rowNames = TRUE)
+  setColWidths(wb = the_wb, sheet = var_name, cols = 1:4, widths = "auto")
+  
+  return(the_wb)
+}
+
+
+#' @title plot_pca_data
+#' @description plots PCA results and overlays batching_factor and factors_of_interest, if applicable
+#' @param the_wb an object of class Workbook 
+#' @param pca_data the PCA data
+#' @param the_name a char string given the name for prepending to sheet name
+#' @details Uses interaction in ggplot2 to color the points
+#' @return an object of class Workbook
+plot_pca_data <- function(the_wb, pca_data, the_name, 
+                    batching_factor, factors_of_interest){
+  
+  # to do. build out function to plot PC values and compute VIF values
+  
+}
+
+print(p1)
+insertPlot(wb=the_wb, pcs_name, width = 5, height = 3.5, fileType = "png", units = "in")
 
 
 
