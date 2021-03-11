@@ -137,7 +137,8 @@ load_packages <- function(){
     "parallel", # multiple processors
     "rlang", # tunneling data-variables
     "openxlsx", # for spreadsheets
-    "ggplot2" # for plotting
+    "ggplot2", # for plotting
+    "car" # for VIF
   )
 
   # Load packages into session 
@@ -727,8 +728,81 @@ compare_batch_correction <- function(the_wb, pca_nbc,
       by="segmentID"
     )
     
+    ## correlation among independent variables (including batching_factor)
+    df_predictors <- nbc_df[,which(colnames(nbc_df) %in% c(batching_factor, factors_of_interest))]
+    df_predictors$Y <- 1 # we're interested in the independent variables
+    
+    basic_formula <- as.formula(
+      paste0('Y ~ ', batching_factor, " + ", paste(factors_of_interest, collapse=" + "))
+    )
+    model_predictors <- lm(basic_formula, data = df_predictors)
+    # Get the correlations and check for complete aliases
+    cors <- alias(model_predictors, partial=TRUE)
+    # log-like messaging 
+    msg <- c() 
+    # If there are complete aliases, make sure none are with batching_factor (2nd column)
+    if("Complete" %in% attributes(cors)$names){
+      if(any(as.numeric(cors$Complete[,2])==1)){
+        # There are some independent factors perfectly correlated with batch.
+        msg <- c(msg, 
+                 paste0("One or more independent variables are perfectly correlated with ", 
+                        batching_factor, 
+                        " VIFs won\'t be calculated for these.\n"))
+        msg <- c(msg, capture.output(cors))
+      }
+    }
+    
+    sheet_name <- "Correlatinos and VIFs"
+    addWorksheet(the_wb, sheet_name)
+    writeData(wb = the_wb,
+              sheet = sheet_name, 
+              x = msg, # i.e., simplified
+              colNames = FALSE, rowNames = FALSE)
+    # setColWidths(wb = the_wb, sheet = sheet_name, cols = 1:ncol(plot_df), widths = "auto")
     
     
+    wb <- the_wb
+    
+    
+    
+    
+    
+    # Though not a problem per se, check for collinearity among factors_of_interest
+    # Go through the top 3 PCs
+    lapply(c("PC1", "PC2", "PC3"), function(the_pc){
+      # full model
+
+      # Go through each factors_of_interest value
+      nbc_df$test <- nbc_df$SlideName
+      
+      for(j in 1:length(factors_of_interest)){
+        nbc_model_j <- lm(
+          as.formula(
+            paste0(the_pc, ' ~ ', batching_factor, " + ", "test")
+          ), data = nbc_df
+        )
+        alias(nbc_model_j, partial=TRUE)
+        
+      }
+      
+    })
+    
+    
+    
+    nbc_df$Tumor <- factor(ifelse(nbc_df$Tumor==TRUE, 1, 0))
+    nbc_model <- lm(
+      as.formula(
+        paste0('PC1 ~ ', batching_factor, " + ", paste(factors_of_interest, collapse=" + "))
+      ), data = nbc_df
+    )
+    alias(nbc_model, partial=TRUE)
+    nbc_model <- lm(
+      as.formula(
+        paste0('PC1 ~ ', batching_factor, " + ", paste(factors_of_interest[1], collapse=" + "))
+      ), data = nbc_df
+    )
+    
+    car::vif(nbc_model)
   }
   
 
