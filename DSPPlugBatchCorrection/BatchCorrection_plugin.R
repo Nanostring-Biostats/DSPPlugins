@@ -179,11 +179,23 @@ check_user_input <- function(batching_factor, factors_of_interest, color_by,
         msg, 
         paste0("Warning! The batching factor, ", 
                batching_factor, 
-               ", is numeric. Will attempt ", 
-               "to coerce to a factor.\n")
+               ", is numeric.\n")
       )
   }
-
+  # Make sure there are at least two unique observation in batching_factor.
+  if(pass & length(unique(segmentAnnotations[,batching_factor]))<2){
+    # still could be meaningful but warn user.
+    pass <- FALSE
+    msg <- c(
+      msg, 
+      paste0("Error! The batching factor, ", 
+             batching_factor, 
+             ", has only ", 
+             length(unique(segmentAnnotations[,batching_factor])), 
+             " unique observations. There needs to be two or more levels.\n")
+    )
+  }
+  
   # if factors of interest are specified, 
   # go through each one and verify there's
   # a column name in segmentAnnottaions.
@@ -424,6 +436,7 @@ run_batch_correction <- function(
 #' @return: NULL. Results sent to disk.
 run_qc <- function(df, bdf, annots, batching_factor, factors_of_interest){
   
+
   # Instantiate spreadsheet
   wb <- createWorkbook(title = paste("Batch Correction QC"), 
                        creator = "NanoString DSP Plugin")
@@ -433,6 +446,7 @@ run_qc <- function(df, bdf, annots, batching_factor, factors_of_interest){
   pca_nbc <- compute_pca(exp_data=df, log2_transform=TRUE)
   wb <- write_pca_results(the_wb=wb, pca_data=pca_nbc, the_name="Before BC")
   # Plot data
+  
   nbc_plot_list <- plot_pca_data(the_wb=wb, pca_data=pca_nbc, annots=annots, the_name="Before BC", 
                       batching_factor=batching_factor, 
                       factors_of_interest=factors_of_interest)
@@ -452,11 +466,12 @@ run_qc <- function(df, bdf, annots, batching_factor, factors_of_interest){
   
   # Compare nbc and bc datasets
   wb <- compare_batch_correction(
-    the_wb=wb, 
-    pca_nbc=pca_nbc, 
+    the_wb=wb,
+    annots=annots,
+    pca_nbc=pca_nbc,
     pca_bc=pca_bc,
-    batching_factor=batching_factor, 
-    factors_of_interest=factors_of_interest, 
+    batching_factor=batching_factor,
+    factors_of_interest=factors_of_interest,
     nbc_pca_plot=nbc_pca_plot,
     bc_pca_plot=bc_pca_plot
   )
@@ -687,6 +702,7 @@ get_condiontal_geom_point <- function(p, col_logic, shp_logic, siz_logic){
 #' @title compare_batch_correction
 #' @description compares VIFs between the two models
 #' @param the_wb the Workbook to append to
+#' @param annots the annotations data.frame
 #' @param pca_nbc the prcomp object without batch correction data
 #' @param pca_bc the prcomp object with batch correction data
 #' @param batching_factor the batching_factor
@@ -696,7 +712,7 @@ get_condiontal_geom_point <- function(p, col_logic, shp_logic, siz_logic){
 #' @details Compares the variance inflation factors for each model. 
 #'          This uses the vif_threshold in the global environment to flag.
 #' @return the updated Workbook with the comparisons sheet (if applicable)
-compare_batch_correction <- function(the_wb, pca_nbc, 
+compare_batch_correction <- function(the_wb, annots, pca_nbc, 
         pca_bc, batching_factor, factors_of_interest,
         nbc_pca_plot, bc_pca_plot){
   
@@ -704,6 +720,11 @@ compare_batch_correction <- function(the_wb, pca_nbc,
   if(is.null(factors_of_interest)){
     return(the_wb)
   } else {
+    
+    # Add a new sheet
+    sheet_name <- "Correlatinos and VIFs"
+    addWorksheet(the_wb, sheet_name)
+    
     ## Create 2 data.frames to compare
     # Non-batch-corrected
     nbc_df <- pca_nbc$x[,1:3]
@@ -728,6 +749,14 @@ compare_batch_correction <- function(the_wb, pca_nbc,
       by="segmentID"
     )
     
+    ## 1 Look within independent variables (no PCA values yet)
+
+    names_link <- tranlate_model_matrix(
+      df=nbc_df[,which(colnames(nbc_df) %in% c(batching_factor, factors_of_interest))], 
+      batching_factor=batching_factor, 
+      factors_of_interest=factors_of_interest)
+    
+    
     ## correlation among independent variables (including batching_factor)
     df_predictors <- nbc_df[,which(colnames(nbc_df) %in% c(batching_factor, factors_of_interest))]
     df_predictors$Y <- 1 # we're interested in the independent variables
@@ -738,80 +767,73 @@ compare_batch_correction <- function(the_wb, pca_nbc,
     model_predictors <- lm(basic_formula, data = df_predictors)
     # Get the correlations and check for complete aliases
     cors <- alias(model_predictors, partial=TRUE)
-    # log-like messaging 
-    msg <- c() 
+     
+    row_offset = 1 
     # If there are complete aliases, make sure none are with batching_factor (2nd column)
     if("Complete" %in% attributes(cors)$names){
       if(any(as.numeric(cors$Complete[,2])==1)){
         # There are some independent factors perfectly correlated with batch.
-        msg <- c(msg, 
-                 paste0("One or more independent variables are perfectly correlated with ", 
+        msg <- paste0("One or more independent variables are perfectly correlated with ", 
                         batching_factor, 
-                        " VIFs won\'t be calculated for these.\n"))
-        msg <- c(msg, capture.output(cors))
+                        " VIFs won\'t be calculated for these.")
+        writeData(wb = the_wb, sheet = sheet_name, x = msg, startRow=row_offset,
+                  colNames = TRUE, rowNames = TRUE)
+        row_offset <- row_offset+3
       }
+      # Write the complete alias(es)
+      writeData(wb = the_wb, sheet = sheet_name, x = as.data.frame(cors$Complete), startRow=row_offset,
+                colNames = TRUE, rowNames = TRUE)
+      row_offset <- row_offset+3+nrow(as.data.frame(cors$Complete))   
     }
-    
-    sheet_name <- "Correlatinos and VIFs"
-    addWorksheet(the_wb, sheet_name)
-    writeData(wb = the_wb,
-              sheet = sheet_name, 
-              x = msg, # i.e., simplified
-              colNames = FALSE, rowNames = FALSE)
-    # setColWidths(wb = the_wb, sheet = sheet_name, cols = 1:ncol(plot_df), widths = "auto")
-    
-    
-    wb <- the_wb
-    
-    
-    
-    
-    
-    # Though not a problem per se, check for collinearity among factors_of_interest
-    # Go through the top 3 PCs
-    lapply(c("PC1", "PC2", "PC3"), function(the_pc){
-      # full model
+    # Write any partial correlations
+    if("Partial" %in% attributes(cors)$names){
+      writeData(wb = the_wb, sheet = sheet_name, x = as.data.frame(cors$Partial), startRow=row_offset,
+                colNames = TRUE, rowNames = TRUE)
+      row_offset <- row_offset+3+nrow(as.data.frame(cors$Partial))    
+    }
 
-      # Go through each factors_of_interest value
-      nbc_df$test <- nbc_df$SlideName
-      
-      for(j in 1:length(factors_of_interest)){
-        nbc_model_j <- lm(
-          as.formula(
-            paste0(the_pc, ' ~ ', batching_factor, " + ", "test")
-          ), data = nbc_df
-        )
-        alias(nbc_model_j, partial=TRUE)
-        
-      }
-      
-    })
-    
-    
-    
-    nbc_df$Tumor <- factor(ifelse(nbc_df$Tumor==TRUE, 1, 0))
-    nbc_model <- lm(
-      as.formula(
-        paste0('PC1 ~ ', batching_factor, " + ", paste(factors_of_interest, collapse=" + "))
-      ), data = nbc_df
-    )
-    alias(nbc_model, partial=TRUE)
-    nbc_model <- lm(
-      as.formula(
-        paste0('PC1 ~ ', batching_factor, " + ", paste(factors_of_interest[1], collapse=" + "))
-      ), data = nbc_df
-    )
-    
-    car::vif(nbc_model)
+    return(the_wb)
+  
   }
-  
-
-  
-  
-  
 }
 
-
+#' @title tranlate_model_matrix
+#' @description Takes a model of batch and 1 or more factors of interest and links the level names to the factor levels.
+#' @param df a data.frame with batching_factors and one or more factors_of_interest
+#' @param batching_factor the name of the batching factor
+#' @param factors_of_interest the names of the factors of interest
+#' @details This is a lower-level function to make it easier to parse out the alias results downstream.
+#' @return a data.frame linking the factors of the model with all their level names
+tranlate_model_matrix <- function(
+  df, 
+  batching_factor, 
+  factors_of_interest){
+  
+  df$Y <- 1 # we're interested only in the independent variables
+  
+  # The model formula
+  the_formula <- as.formula(
+    paste0('Y ~ ', batching_factor, " + ", paste(factors_of_interest, collapse=" + "))
+  )
+  
+  # get model structure and parse out 
+  # level_names and factor assignments
+  structure <- model.matrix(the_formula, data=df)
+  the_levels_names <- attributes(structure)$dimnames[[2]]
+  the_factor_assignments <- attributes(structure)$assign + 1 # 1 indexed with intercept = 1
+  
+  # fit model
+  the_model <- lm(the_formula, data = df)
+  
+  # Get the model terms
+  the_factors <- c("(Intercept)", attributes(terms(x = the_model))$term.labels)
+  
+  out <- data.frame("the_levels_names"=the_levels_names, 
+                    "the_factor_assignments"=the_factor_assignments)
+  out$the_factors <- the_factors[match(out$the_factor_assignments, order(the_factors))]
+  out <- out[,3:1]
+  return(out)
+}
 
 
 
