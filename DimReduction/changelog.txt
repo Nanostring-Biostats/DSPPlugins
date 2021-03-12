@@ -1,0 +1,21 @@
+# Changelog
+All notable changes to the DimReduction.R plugin for GeoMx(R) DSP will be documented in this file.
+
+## [1.1] - 2021-03-12
+### Changed 
+- PCA function updated to use scaling
+- Word document vignette updated to reflect change in code calling scaling of PCA
+
+### Added
+- changelog file
+
+## [1.0] - 2021-03-01
+### Added
+- Perform implementation of PCA through stats::prcomp
+- Perform implementation of tSNE through Rtsne::Rtsne
+- Perform implementation of UMAP through umap::umap
+- Generate plots based on user set parameters for color, shape and size
+- Output plots based on user set parameter for plot type
+- Output excel file capturing dimension reduction outputs and sample annotations
+- License file
+- Word document vignette describinig intended use and interpretation

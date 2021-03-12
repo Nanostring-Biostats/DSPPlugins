@@ -1,4 +1,5 @@
 # Dimension Reduction #
+# Version 1.1 #
 
 # Produces PCA, tSNE, or UMAP visualizations
 # Supports: DSP-nCounter Protein, DSP-nCounter RNA, DSP-NGS CTA
