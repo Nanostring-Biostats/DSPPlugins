@@ -17,7 +17,7 @@
 # to check for collinearity (or NULL)
 # factors_of_interest <- c("SegmentName", "Tumor") # NULL
 # The tolerance (1 or greater)
-# vif_threshold <- 5
+# cor_threshold <- 0.01
 
 ## Plot parameters
 # color plots by one of these three:
@@ -138,7 +138,7 @@ load_packages <- function(){
     "rlang", # tunneling data-variables
     "openxlsx", # for spreadsheets
     "ggplot2", # for plotting
-    "car" # for VIF
+    "cowplot" # side-by-side plots
   )
 
   # Load packages into session 
@@ -440,12 +440,20 @@ run_qc <- function(df, bdf, annots, batching_factor, factors_of_interest){
   wb <- createWorkbook(title = paste("Batch Correction QC"), 
                        creator = "NanoString DSP Plugin")
   
+  # compare independent factors
+  ind_list <- compare_independent_factors(
+    the_wb = wb,
+    annots=annots, 
+    batching_factor=batching_factor,
+    factors_of_interest=factors_of_interest)
+  wb <- ind_list[[1]]
+  factors_of_interest <- ind_list[[2]] # removed 100% confounded ind. variables.
+  
   ## Non-batch-corrected (nbc) data
   # PCA data and write results
   pca_nbc <- compute_pca(exp_data=df, log2_transform=TRUE)
   wb <- write_pca_results(the_wb=wb, pca_data=pca_nbc, the_name="Before BC")
   # Plot data
-  
   nbc_plot_list <- plot_pca_data(the_wb=wb, pca_data=pca_nbc, annots=annots, the_name="Before BC", 
                       batching_factor=batching_factor, 
                       factors_of_interest=factors_of_interest)
@@ -486,6 +494,99 @@ run_qc <- function(df, bdf, annots, batching_factor, factors_of_interest){
   
 }
 
+
+#' @title compare_independent_factors
+#' @description Looks at independent factors and generates report
+#' @param the_wb the Workbook
+#' @param annots the annotations
+#' @param batching_factor the batching_factor
+#' @parma factors_of_interest the factors_of_interest (NULL or 1 or more)
+compare_independent_factors <- function(the_wb, annots,batching_factor,factors_of_interest){
+  
+  sheet_name <- paste0("Compare Ind. Vars.")
+  addWorksheet(the_wb, sheet_name)
+  
+  # Links the factors with their associates level names in the model
+  # and gets the correlations from the alias function
+  model_list <- tranlate_model_matrix(
+    df=annots[,which(colnames(annots) %in% c(batching_factor, factors_of_interest))], 
+    batching_factor=batching_factor, 
+    factors_of_interest=factors_of_interest)
+  names_link <- model_list[[1]]
+  cors <- model_list[[2]]
+  
+  row_offset = 1 # Cascades down the logic to place results in Workbook.
+  
+  # Check if any factors are completely confounded with batching_factor. 
+  # If any are, tell the user and drop those factors of interest.
+  if("Complete" %in% attributes(cors)$names){
+    complete_cores <- cors$Complete
+    batching_levels <- as.character(names_link[which(names_link$the_factors %in% batching_factor),'the_levels_names'])
+    
+    factors_to_remove <- c()
+    
+    for(i in 1:nrow(complete_cores)){
+      for(j in 1:ncol(complete_cores)){
+        if(complete_cores[i,j]>0){
+          # This combination is confounded.
+          # Check if it affects a batching level.
+          row_i_factor <- names_link$the_factors[which(as.character(names_link$the_levels_names)==rownames(complete_cores)[i])]
+          col_j_factor <- names_link$the_factors[which(as.character(names_link$the_levels_names)==colnames(complete_cores)[j])]
+          if(row_i_factor %in% batching_factor){
+            # remove the associated column's factor
+            factors_to_remove <- c(factors_to_remove, col_j_factor)
+          }            
+          if(col_j_factor %in% batching_factor){
+            # remove the associated rows's factor
+            factors_to_remove <- c(factors_to_remove, row_i_factor)
+          } 
+          
+        }
+      }
+    }
+    # tell user and remove factors:
+    if(length(factors_to_remove)>0){
+      msg <- paste0("There were ", 
+                    length(factors_to_remove), " factor(s) (", 
+                    paste(factors_to_remove, collapse=", "),
+                    ") that were perfectly correlated with the batching factor \'",
+                    batching_factor, 
+                    "\'. Removing from list.")
+      writeData(wb = the_wb, sheet = sheet_name, x = msg, startRow=row_offset,
+                colNames = FALSE, rowNames = FALSE)
+      row_offset <- row_offset+3
+      factors_of_interest <- setdiff(factors_of_interest, factors_to_remove)
+    }
+  }
+  
+  # Flag if any of the correlations are greater than cor_threshold
+  if("Partial" %in% attributes(cors)$names){
+    if(any(abs(cors$Partial[-1,-1][upper.tri(cors$Partial[-1,-1])]) > cor_threshold)){
+      msg <- paste0("One or more correlations are greater in magnitude than the cutoff of ", cor_threshold)
+      writeData(wb = the_wb, sheet = sheet_name, x = msg, startRow=row_offset,
+                colNames = FALSE, rowNames = FALSE)
+      row_offset <- row_offset+3
+    }
+  }
+  
+  # Return the partial correlations
+  if("Partial" %in% attributes(cors)$names){
+    writeData(wb = the_wb, sheet = sheet_name, x = cors$Partial, startRow=row_offset,
+              colNames = TRUE, rowNames = TRUE)
+    row_offset <- row_offset+3
+  }
+  
+  # Call out if no factors of interest remain
+  if(length(factors_of_interest)==0){
+    msg <- paste0("No factors of interest remain for comparison.")
+    writeData(wb = the_wb, sheet = sheet_name, x = msg, startRow=row_offset,
+              colNames = TRUE, rowNames = TRUE)
+  }
+  
+  return(list(the_wb, factors_of_interest))
+  
+}
+
 #' @title compute_pca
 #' @description lower-level function to run PCA.
 #' @param exp_data a data.frame of expression data with column names equal to samples.
@@ -499,6 +600,7 @@ compute_pca <- function(exp_data, log2_transform=TRUE){
   }
   return(dr_data)
 }
+
 
 #' @title write_pca_results
 #' @description writes PCA results given PCA data and name
@@ -698,6 +800,7 @@ get_condiontal_geom_point <- function(p, col_logic, shp_logic, siz_logic){
   return(out)
 }
 
+
 #' @title compare_batch_correction
 #' @description compares VIFs between the two models
 #' @param the_wb the Workbook to append to
@@ -715,174 +818,80 @@ compare_batch_correction <- function(the_wb, annots, pca_nbc,
         pca_bc, batching_factor, factors_of_interest,
         nbc_pca_plot, bc_pca_plot){
   
-  # If there are no factors_of_interest, return the unaltered Workbook
-  if(is.null(factors_of_interest)){
-    return(the_wb)
-  } else {
+  # Add a new sheet
+  sheet_name <- "Batch Correction Evaluation"
+  addWorksheet(the_wb, sheet_name)
     
-    # Add a new sheet
-    sheet_name <- "Correlatinos and VIFs"
-    addWorksheet(the_wb, sheet_name)
-    
-    ## Create 2 data.frames to compare
-    # Non-batch-corrected
-    nbc_df <- pca_nbc$x[,1:3]
-    nbc_df <- add_column(
-      as_tibble(nbc_df),
-      "segmentID"=row.names(nbc_df), 
-      .before=1)
-    nbc_df <- base::merge(
-      annots[,c("segmentID", batching_factor, eval(factors_of_interest))],
-      nbc_df,
-      by="segmentID"
-    )
-    # Batch-corrected
-    bc_df <- pca_bc$x[,1:3]
-    bc_df <- add_column(
-      as_tibble(bc_df),
-      "segmentID"=row.names(bc_df), 
-      .before=1)
-    bc_df <- base::merge(
-      annots[,c("segmentID", batching_factor, eval(factors_of_interest))],
-      bc_df,
-      by="segmentID"
-    )
-    
-    ## 1st Look within independent variables (no PCA values yet)
-    # to determine if any 1) factors_of_interest are completely confounded
-    # with batch or 2) amongst themselves (which will cause errors in the vif function).
-    
-    # Links the factors with their associates level names in the model
-    # and gets the correlations from the alias function
-    model_list <- tranlate_model_matrix(
-      df=nbc_df[,which(colnames(nbc_df) %in% c(batching_factor, factors_of_interest))], 
-      batching_factor=batching_factor, 
-      factors_of_interest=factors_of_interest)
-    names_link <- model_list[[1]]
-    cors <- model_list[[2]]
-    
-    row_offset = 1 # Cascades down the logic to place results in Workbook.
-    
-    # Check if any factors are completely confounded with batching_factor. 
-    # If any are, tell the user and drop those factors of interest.
-    if("Complete" %in% attributes(cors)$names){
-      complete_cores <- cors$Complete
-      batching_levels <- as.character(names_link[which(names_link$the_factors %in% batching_factor),'the_levels_names'])
-      
-      factors_to_remove <- c()
-      
-      for(i in 1:nrow(complete_cores)){
-        for(j in 1:ncol(complete_cores)){
-          if(complete_cores[i,j]>0){
-            # This combination is confounded.
-            # Check if it affects a batching level.
-            row_i_factor <- names_link$the_factors[which(as.character(names_link$the_levels_names)==rownames(complete_cores)[i])]
-            col_j_factor <- names_link$the_factors[which(as.character(names_link$the_levels_names)==colnames(complete_cores)[j])]
-            if(row_i_factor %in% batching_factor){
-              # remove the associated column's factor
-              factors_to_remove <- c(factors_to_remove, col_j_factor)
-            }            
-            if(col_j_factor %in% batching_factor){
-              # remove the associated rows's factor
-              factors_to_remove <- c(factors_to_remove, row_i_factor)
-            } 
-              
-          }
-        }
-      }
-      # tell user and remove factors:
-      if(length(factors_to_remove)>0){
-        msg <- paste0("There were ", 
-                      length(factors_to_remove), " factor(s) (", 
-                      paste(factors_to_remove, collapse=", "),
-                      ") that were perfectly correlated with the batching factor \'",
-                      batching_factor, 
-                      "\'. VIFs won\'t be calculated for these.")
-        writeData(wb = the_wb, sheet = sheet_name, x = msg, startRow=row_offset,
-                  colNames = TRUE, rowNames = TRUE)
-        row_offset <- row_offset+3
-        factors_of_interest <- setdiff(factors_of_interest, factors_to_remove)
-      }
-    }
-    
-    # return the unaltered Workbook if no factors of interest remain.
-    if(length(factors_of_interest)==0){
-      msg <- paste0("No factors of interest remain for comparison.")
-      writeData(wb = the_wb, sheet = sheet_name, x = msg, startRow=row_offset,
-                colNames = TRUE, rowNames = TRUE)
-      return(the_wb)
-    }
-    
-    ## 2nd: Go through the 2 PCA datasets and compute VIFs for each factors with batch
-    ## and each of the first 3 PCs.
-    for(pci in paste0("PC", 1:3)){
-      for(factor_j in factors_of_interest){
-        get_vif(df=nbc_df, response=pci, batching_factor=batching_factor, the_factor=factor_j, the_name="Non-Batch Corrected")
-        
-      }
-    }
-    outer <- do.call(rbind, lapply(paste0("PC", 1:3), function(pci){
-      middle <- do.call(rbind, lapply(factors_of_interest, function(factor_j){
-        inner <- rbind(
-          get_vif(df=nbc_df, response=pci, batching_factor=batching_factor, the_factor=factor_j, the_name="Non-Batch Corrected"),
-          get_vif(df=bc_df, response=pci, batching_factor=batching_factor, the_factor=factor_j, the_name="Batch Corrected")
-        )
-        return(inner)
-      }))
-    }))
-    
-    
-    
-    
-    return(the_wb)
-  }
+  ## Transform the two datasets to compare
+  # Non-batch-corrected
+  nbc_df <- pca_nbc$x[,1:3]
+  nbc_df <- add_column(
+    as_tibble(nbc_df),
+    "segmentID"=row.names(nbc_df), 
+    .before=1)
+  nbc_df <- base::merge(
+    annots[,c("segmentID", batching_factor, eval(factors_of_interest))],
+    nbc_df,
+    by="segmentID"
+  )
+  # Batch-corrected
+  bc_df <- pca_bc$x[,1:3]
+  bc_df <- add_column(
+    as_tibble(bc_df),
+    "segmentID"=row.names(bc_df), 
+    .before=1)
+  bc_df <- base::merge(
+    annots[,c("segmentID", batching_factor, eval(factors_of_interest))],
+    bc_df,
+    by="segmentID"
+  )
+  
+  # Go through each PC and compare batch
+  outer <- do.call(rbind, lapply(paste0("PC", 1:3), function(pci){
+    inner <- rbind(
+        get_coeffs(df=nbc_df, response=pci, batching_factor=batching_factor, the_name="Non-Batch Corrected"),
+        get_coeffs(df=bc_df, response=pci, batching_factor=batching_factor, the_name="Batch Corrected")
+      )
+    return(inner)
+  }))
+  
+  writeData(wb = the_wb,
+            sheet = sheet_name,
+            x = outer,
+            colNames = TRUE, rowNames = FALSE)
+  setColWidths(wb = the_wb, sheet = sheet_name, cols = 1:8, widths = "auto")
+  
+  
+  print(cowplot::plot_grid(nbc_pca_plot, bc_pca_plot)) # must print
+  insertPlot(wb=the_wb, sheet = sheet_name, width = 12, height = 3.5, 
+             fileType = "png", units = "in", startRow = 1, startCol = 10)
+  
+  return(the_wb)
+  
 }
 
-
-
-get_vif <- function(df, response, batching_factor, the_factor, the_name){
-  the_formula <- as.formula(paste0(response, " ~ ", batching_factor, " + ", the_factor))
+#' @title get_coeffs
+#' @description lower-level function for computing and returning linear model coefficients
+#' @param df a data.frame with PC scores and batching_factor
+#' @param batching_factor the name of the batching factor
+#' @param the_name a name that will be used to give the model
+#' @return a tibble giving the coefficients
+get_coeffs <- function(df, response, batching_factor, the_name){
+  the_formula <- as.formula(paste0(response, " ~ ", batching_factor))
   the_model <- lm(the_formula, data=df)
-  out <- as.data.frame(car::vif(the_model))
-  colnames(out)[1] <- "VIF"
-  out <- add_column(as_tibble(out),"independent_variable"=row.names(out), .before=1)
-  out <- add_column(out, "focal_factor"=rep(the_factor, nrow(out)), .before=1)
-  out <- add_column(out, "PC"=rep(response, nrow(out)), .before=1)
-  out <- add_column(out, "Type"=rep(the_name, nrow(out)), .before=1)  
+  the_summary <- summary(the_model)
+  coeffs <- the_summary$coefficients
+  coeffs <- add_column(as_tibble(coeffs),"Coeff"=row.names(coeffs), .before=1)
+  if("(Intercept)" %in% coeffs$Coeff){
+    coeffs <- coeffs[-c(which(coeffs$Coeff=="(Intercept)")),]
+  }
+  coeffs$adj.r.squared <- rep(the_summary$adj.r.squared, nrow(coeffs))
+  coeffs <- add_column(coeffs, "PC"=rep(response, nrow(coeffs)), .before=1)
+  coeffs <- add_column(coeffs, "Type"=rep(the_name, nrow(coeffs)), .before=1)
   
-  return(out)
-}    
-#     
-#     
-#     
-#     
-#     # If there are complete aliases, make sure none are with batching_factor (2nd column)
-#     if("Complete" %in% attributes(cors)$names){
-#       if(any(as.numeric(cors$Complete[,2])==1)){
-#         # There are some independent factors perfectly correlated with batch.
-#         msg <- paste0("One or more independent variables are perfectly correlated with ", 
-#                         batching_factor, 
-#                         " VIFs won\'t be calculated for these.")
-#         writeData(wb = the_wb, sheet = sheet_name, x = msg, startRow=row_offset,
-#                   colNames = TRUE, rowNames = TRUE)
-#         row_offset <- row_offset+3
-#       }
-#       # Write the complete alias(es)
-#       writeData(wb = the_wb, sheet = sheet_name, x = as.data.frame(cors$Complete), startRow=row_offset,
-#                 colNames = TRUE, rowNames = TRUE)
-#       row_offset <- row_offset+3+nrow(as.data.frame(cors$Complete))   
-#     }
-#     # Write any partial correlations
-#     if("Partial" %in% attributes(cors)$names){
-#       writeData(wb = the_wb, sheet = sheet_name, x = as.data.frame(cors$Partial), startRow=row_offset,
-#                 colNames = TRUE, rowNames = TRUE)
-#       row_offset <- row_offset+3+nrow(as.data.frame(cors$Partial))    
-#     }
-# 
-#     return(the_wb)
-#   
-#   }
-# }
+  return(coeffs)
+}
+  
 
 #' @title tranlate_model_matrix
 #' @description Takes a model of batch and 1 or more factors of interest and links the level names to the factor levels.
@@ -892,9 +901,7 @@ get_vif <- function(df, response, batching_factor, the_factor, the_name){
 #' @details This is a lower-level function to make it easier to parse out the alias results downstream.
 #' @return a list giving the data.frame linking the factors of the model with all their level names and the output of the alias function
 tranlate_model_matrix <- function(
-  df, 
-  batching_factor, 
-  factors_of_interest){
+  df, batching_factor, factors_of_interest){
   
   df$Y <- 1 # we're interested only in the independent variables
   
@@ -925,8 +932,6 @@ tranlate_model_matrix <- function(
   
   return(list(linker, cors))
 }
-
-
 
 
 ### #####
