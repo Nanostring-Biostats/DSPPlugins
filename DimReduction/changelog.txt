@@ -19,4 +19,4 @@ All notable changes to the DimReduction.R plugin for GeoMx(R) DSP will be docume
 - Output plots based on user set parameter for plot type
 - Output excel file capturing dimension reduction outputs and sample annotations
 - License file
-- Word document vignette describinig intended use and interpretation
+- Word document vignette describing intended use and interpretation
