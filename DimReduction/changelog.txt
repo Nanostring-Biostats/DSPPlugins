@@ -8,6 +8,7 @@ All notable changes to the DimReduction.R plugin for GeoMx(R) DSP will be docume
 
 ### Added
 - changelog file
+- Version number added to plugin script code
 
 ## [1.0] - 2021-03-01
 ### Added
