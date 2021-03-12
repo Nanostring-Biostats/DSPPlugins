@@ -109,7 +109,7 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
   } else {
     var_est <- NULL
   }
-
+  
   # Step 3: Graph data
   # if color is a gene symbol add it to the annotations for plotting
   if(is.null(color_by)) {
@@ -156,7 +156,7 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
       fail(message = 'Size not found. Please check to ensure that the target name specified for size is in the target count matrix')
     }
   }
-
+  
   # gather color parameters
   names(plot_colors) <- color_levels[1:length(plot_colors)]
   params <- list("plot_type" = plot_type,
@@ -324,7 +324,7 @@ calc_DR <- function(plot_type = NULL,
     segmentAnnotations$Dim1 <- dr_data$Y[, 1]
     segmentAnnotations$Dim2 <- dr_data$Y[, 2]
   } else if(plot_type == "PCA") {
-    dr_data <- prcomp(t(log2(targetCountMatrix)))
+    dr_data <- prcomp(t(log2(targetCountMatrix)), scale. = TRUE)
     segmentAnnotations$Dim1 <- dr_data$x[, 1]
     segmentAnnotations$Dim2 <- dr_data$x[, 2]
     segmentAnnotations$Dim3 <- dr_data$x[, 3]
@@ -355,10 +355,10 @@ plot_DR <- function(targetCountMatrix = NULL,
           text = element_text(family = params$plot_font$family)) 
   
   # Add size
- if(!is.null(params$size_by)) {
-   sz_ttl <- paste0(gsub("_linear", "", params$size_by),
-                    ",\nCounts")
-   plt <- plt +
+  if(!is.null(params$size_by)) {
+    sz_ttl <- paste0(gsub("_linear", "", params$size_by),
+                     ",\nCounts")
+    plt <- plt +
       geom_point(aes_string(shape = params$shape_by,   # if any of these is null it will still graph
                             color = params$color_by,
                             size = params$size_by),
@@ -407,7 +407,7 @@ plot_DR <- function(targetCountMatrix = NULL,
         cols <- brewer.pal(n = max(3, n_cols),
                            name = params$plot_colors[[1]])
         cols <- cols[1:n_cols]
-      # otherwise extrapolate colors to larger space
+        # otherwise extrapolate colors to larger space
       } else {
         cols <- brewer.pal(n = brewer.pal.info[params$plot_colors[[1]], 1],
                            name = params$plot_colors[[1]])
@@ -418,14 +418,14 @@ plot_DR <- function(targetCountMatrix = NULL,
         color_levels <- color_levels[color_levels %in% lvls]
         names(cols) <- color_levels
       }
-    plt <- plt + 
-      scale_color_manual(values = cols)
-    # if a list of colors is provided use those
+      plt <- plt + 
+        scale_color_manual(values = cols)
+      # if a list of colors is provided use those
     } else {
       plt <- plt +
         scale_color_manual(values = params$plot_colors) 
     }
-  # coloring by Target value
+    # coloring by Target value
   } else if(params$colType == "Target") {
     clr_name <- paste0(params$color_by, ',\nLog2 Counts')
     # 3 point gradient
