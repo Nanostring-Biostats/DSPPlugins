@@ -7,8 +7,8 @@
 # Please do not use spaces, special characters, or numbers when adding factors
 # in the DSPDA Annotation file
 
-#        User Options        #
-##############################
+#        User Options         #
+###############################
 
 plot_type = "PCA"
 # Options: tSNE, UMAP, PCA

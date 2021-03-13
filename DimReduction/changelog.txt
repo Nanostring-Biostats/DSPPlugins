@@ -1,5 +1,5 @@
 # Changelog
-All notable changes to the DimReduction.R plugin for GeoMx(R) DSP will be documented in this file.
+All notable changes to the DimReduction.R script for GeoMx(R) DSP will be documented in this file.
 
 ## [1.1] - 2021-03-12
 ### Changed 
