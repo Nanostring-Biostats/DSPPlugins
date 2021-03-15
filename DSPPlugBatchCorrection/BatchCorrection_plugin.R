@@ -12,33 +12,35 @@
 
 ## Statistical parameters
 # (required) The batching factor
-batching_factor <- "SlideName"
+# batching_factor <- "SlideName"
 # (optional) factors of biological interest
 # to check for collinearity (or NULL)
-factors_of_interest <- c("SegmentName", "Tumor") # NULL
+# factors_of_interest <- c("SegmentName", "Tumor") # NULL
 # Correlation with factors 
 # of interest threshold
-cor_threshold <- 0.01
+# cor_threshold <- 0.01
 
 ## Plot parameters
+# the plot type
+# plot_file_type <- "png"
 # color plots by one of these three:
 # - "batching_factor"
 # - "factors_of_interest"
 # - NULL
-color_by = "batching_factor"
+# color_by = "batching_factor"
 # shape plots by one of these three:
 # - "batching_factor"
 # - "factors_of_interest"
 # - NULL
-shape_by = "factors_of_interest"
+# shape_by = "factors_of_interest"
 # size points by "PC3" or NULL
-size_by = NULL
+# size_by = NULL
 # font family and axes and label
 # size
-plot_font = list(
-  family = "sans",
-  size = 15
-  )
+# plot_font = list(
+#   family = "sans",
+#   size = 15
+#   )
 
 ### ###################
 ### End User Inputs ###
@@ -650,15 +652,15 @@ write_pca_results <- function(the_wb, pca_data, the_name){
 #' @param pca_data the PCA data
 #' @param annots the segmentAnnotations
 #' @param the_name a char string given the name for prepending to sheet name
-#' @details Note: this function calls several objects in global scope:
+#' @details Note: this function calls several objects in global scope.
 #'          
 #' @return list of Workbook and plot
 plot_pca_data <- function(the_wb, pca_data, annots, the_name, 
                     batching_factor, factors_of_interest){
   
   # to do. build out function to plot PC values and compute VIF values
-  # goal: write the data for making the figure to a sheet, insert the plot, 
-  #       and add a sheet summarizing the VIFs.
+  # goal: write the data for making the figure to a sheet and return
+  # the Workbook and the plot object
   
   # Pivot and Merge first 3 values to annotations' batch
   #   factor and factors of interest (if applicable)
@@ -815,7 +817,8 @@ get_condiontal_geom_point <- function(p, col_logic, shp_logic, siz_logic){
 #' @param bc_pca_plot a ggplot2 object of the batch corrected data
 #' @details Compares the variance inflation factors for each model. 
 #'          This uses the vif_threshold in the global environment to flag.
-#' @return the updated Workbook with the comparisons sheet (if applicable)
+#' @return the updated Workbook with the comparisons sheet (if applicable). 
+#'         Also sends the before/after images to disk.
 compare_batch_correction <- function(the_wb, annots, pca_nbc, 
         pca_bc, batching_factor, factors_of_interest,
         nbc_pca_plot, bc_pca_plot){
@@ -863,7 +866,13 @@ compare_batch_correction <- function(the_wb, annots, pca_nbc,
             colNames = TRUE, rowNames = FALSE)
   setColWidths(wb = the_wb, sheet = sheet_name, cols = 1:8, widths = "auto")
   
-  
+  # Send side-by-side to dsik.
+  p <- cowplot::plot_grid(nbc_pca_plot, bc_pca_plot)
+  ggsave(p, 
+         filename = file.path(outputFolder, 
+         paste0("Before_vs_After.", plot_file_type),
+         fsep = .Platform$file.sep), 
+         width=12, height=4)
   # print(cowplot::plot_grid(nbc_pca_plot, bc_pca_plot)) # must print
   # insertPlot(wb=the_wb, sheet = sheet_name, width = 12, height = 3.5, 
   #            fileType = "png", units = "in", startRow = 1, startCol = 10)
