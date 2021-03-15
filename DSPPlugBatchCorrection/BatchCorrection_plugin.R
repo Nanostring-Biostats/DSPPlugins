@@ -11,33 +11,34 @@
 ### ###############
 
 ## Statistical parameters
-# The batching factor (required)
-# batching_factor <- "SlideName"
-# factors of biological interest
+# (required) The batching factor
+batching_factor <- "SlideName"
+# (optional) factors of biological interest
 # to check for collinearity (or NULL)
-# factors_of_interest <- c("SegmentName", "Tumor") # NULL
-# The tolerance (1 or greater)
-# cor_threshold <- 0.01
+factors_of_interest <- c("SegmentName", "Tumor") # NULL
+# Correlation with factors 
+# of interest threshold
+cor_threshold <- 0.01
 
 ## Plot parameters
 # color plots by one of these three:
 # - "batching_factor"
 # - "factors_of_interest"
 # - NULL
-# color_by = "batching_factor"
+color_by = "batching_factor"
 # shape plots by one of these three:
 # - "batching_factor"
 # - "factors_of_interest"
 # - NULL
-# shape_by = "factors_of_interest"
+shape_by = "factors_of_interest"
 # size points by "PC3" or NULL
-# size_by = NULL
+size_by = NULL
 # font family and axes and label
 # size
-# plot_font = list(
-#   family = "sans",
-#   size = 15
-#   )
+plot_font = list(
+  family = "sans",
+  size = 15
+  )
 
 ### ###################
 ### End User Inputs ###
@@ -137,6 +138,7 @@ load_packages <- function(){
     "parallel", # multiple processors
     "rlang", # tunneling data-variables
     "openxlsx", # for spreadsheets
+    "tibble", # for adding columns
     "ggplot2", # for plotting
     "cowplot" # side-by-side plots
   )
@@ -739,8 +741,8 @@ plot_pca_data <- function(the_wb, pca_data, annots, the_name,
   setColWidths(wb = the_wb, sheet = sheet_name, cols = 1:ncol(plot_df), widths = "auto")
   
   # Add plot
-  print(plt) # must print
-  insertPlot(wb=the_wb, sheet = sheet_name, width = 5, height = 3.5, fileType = "png", units = "in")
+  # print(plt) # must print
+  # insertPlot(wb=the_wb, sheet = sheet_name, width = 5, height = 3.5, fileType = "png", units = "in")
   
   # return the Workbook object
   return(list(the_wb, plt))
@@ -862,9 +864,9 @@ compare_batch_correction <- function(the_wb, annots, pca_nbc,
   setColWidths(wb = the_wb, sheet = sheet_name, cols = 1:8, widths = "auto")
   
   
-  print(cowplot::plot_grid(nbc_pca_plot, bc_pca_plot)) # must print
-  insertPlot(wb=the_wb, sheet = sheet_name, width = 12, height = 3.5, 
-             fileType = "png", units = "in", startRow = 1, startCol = 10)
+  # print(cowplot::plot_grid(nbc_pca_plot, bc_pca_plot)) # must print
+  # insertPlot(wb=the_wb, sheet = sheet_name, width = 12, height = 3.5, 
+  #            fileType = "png", units = "in", startRow = 1, startCol = 10)
   
   return(the_wb)
   
