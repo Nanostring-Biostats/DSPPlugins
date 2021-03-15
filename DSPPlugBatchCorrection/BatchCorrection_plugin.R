@@ -507,6 +507,11 @@ run_qc <- function(df, bdf, annots, batching_factor, factors_of_interest){
 #' @parma factors_of_interest the factors_of_interest (NULL or 1 or more)
 compare_independent_factors <- function(the_wb, annots,batching_factor,factors_of_interest){
   
+  # Ignore this if no factors_of_interest
+  if(is.null(factors_of_interest)){
+    return(list(the_wb, factors_of_interest))
+  }
+  
   sheet_name <- paste0("Compare Ind. Vars.")
   addWorksheet(the_wb, sheet_name)
   
