@@ -534,7 +534,7 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
 
   layout(mat = matrix(c(1, 2, 3, 3), 2), widths = c(10, 3, 10, 3), heights = c(1, 8, 10))
   par(mar = c(0, 8.2, 0, 0.2))
-  plot(p1$tree_col, labels = F, main = "", ylab = "", yaxt = "n")
+  plot(p2$tree_col, labels = F, main = "", ylab = "", yaxt = "n")
   par(mar = c(15, 8, 0, 0))
 
   # data to plot:
@@ -557,7 +557,7 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
     for (i in 1:ncol(mat)) {
       rect(bp[i] - xwidth, yrange[2], bp[i] + xwidth, yrange[1],
         # border = NA, col = cols[[name]][segmentAnnotations[match(colnames(mat)[i], segmentAnnotations$segmentID), name]]
-        border = NA, col = cols[[name]][segmentAnnotations[p1$tree_col$order[i], name]]
+        border = NA, col = cols[[name]][segmentAnnotations[p2$tree_col$order[i], name]]
       )
     }
   }
