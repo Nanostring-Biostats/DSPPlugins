@@ -1,4 +1,5 @@
 # Spatial Deconvolution #
+# Version 1.1 #
 
 # Produces cell abundance and proportion plots/scores
 # Supports: DSP-NGS CTA
