@@ -29,7 +29,9 @@ if (custom_annotation_colors) {
     Response = c(
       "NR" = "blue", 
       "R" = "orange")
-  )
+  ) else {
+    annotation_colors <- NULL
+  }
   # for a list of R colors, see http://www.stat.columbia.edu/~tzheng/files/Rcolor.pdf
 }
 
@@ -89,12 +91,18 @@ pdf_height <- 7
 # dependent libraries
 library(pheatmap)
 library(RColorBrewer)
+library(dplyr)
 
 # main function called by DSP-DA
 main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
   
-  # set row names to target names
   targetCountMatrix <- dataset
+  # make unique segment identifiers instead of GUIDs
+  segmentAnnotationsMod <- segmentAnnotations %>%
+    mutate(segmentDisplayName = paste(ScanName, ROIName, SegmentName, sep=" | "))
+  # update count matrix column names with new segment unique ID instead of GUID. 
+  names(targetCountMatrix) <- segmentAnnotationsMod[match(names(targetCountMatrix), segmentAnnotationsMod[ , "segmentID"]), "segmentDisplayName"]  
+  # update count matrix rownames with targetNames
   rownames(targetCountMatrix) <- targetAnnotations[match(rownames(targetCountMatrix), targetAnnotations[ , "TargetGUID"]), "TargetName"]
   
   # setup output file
@@ -184,7 +192,7 @@ draw_general_heatmap <- function(data = targetCountMatrix,
   
   # subset annotations data
   if (!is.null(annotations_to_show)) {
-    annotations <- subset(annotations, select = c("segmentID", annotations_to_show))
+    annotations <- subset(annotations, select = c("segmentDisplayName", annotations_to_show))
     annot_rownames <- annotations[,1]
     annotations <- annotations[,-1, drop = FALSE]
     rownames(annotations) <- annot_rownames
