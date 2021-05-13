@@ -123,7 +123,7 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
   draw_general_heatmap(data = targetCountMatrix,
                        heatmap_colors = heatmap_colors,
                        scale_cutoff = scale_cutoff,
-                       annotations = segmentAnnotations,
+                       annotations = segmentAnnotationsMod,
                        annotations_to_show = annotations_to_show,
                        annotation_colors = annotation_colors,
                        sort_by = sort_by,
