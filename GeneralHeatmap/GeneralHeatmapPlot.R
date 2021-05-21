@@ -28,12 +28,12 @@ if (custom_annotation_colors) {
       "Disease" = "red"), 
     Response = c(
       "NR" = "blue", 
-      "R" = "orange")
-  ) else {
+      "R" = "orange"))
+  } else {
     annotation_colors <- NULL
   }
   # for a list of R colors, see http://www.stat.columbia.edu/~tzheng/files/Rcolor.pdf
-}
+
 
 # define annotation to use for supervised clustering (optional):
 sort_by <- NULL #e.g. "Response"
