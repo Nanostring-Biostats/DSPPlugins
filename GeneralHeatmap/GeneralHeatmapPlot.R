@@ -46,7 +46,7 @@ sort_order <- NULL #e.g. c("Unknown", "Responder", "Non-Responder")
 # choose heatmap color scheme (optional):
 heatmap_colors <- NULL #e.g. c("navy", "white", "firebrick3")
 
-# set heatmap scale (asolute value):
+# set heatmap color and legend scale (absolute value):
 scale_cutoff <- 3
 
 # set whether sample and target names should be shown:
@@ -142,7 +142,7 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
 #' 
 #' @param data data frame of data to plot.  targets in rows, samples in columns
 #' @param heatmap_colors list of low, med, high colors used for heatmap colors. if NULL, uses pheatmap default
-#' @param scale_cutoff value to limit standard deviations of z-score in either direction
+#' @param scale_cutoff value to set range of heatmap colors and legend
 #' @param annotations data frame of sample annotations
 #' @param annotations_to_show list of annotations to show as color bars on heatmap. must include sort_by variable if specified
 #' @param annotation_colors named list of lists specifying colors for each level of annotations_to_show
@@ -216,10 +216,6 @@ draw_general_heatmap <- function(data = targetCountMatrix,
   
   # log2 transform data
   data <- data.frame(log2(data))
-  
-  # cap log2 data at scale_cutoff
-  scale_cutoff <- abs(scale_cutoff)
-  data <- pmin(pmax(t(scale(t(data))), - scale_cutoff), scale_cutoff)
   colnames(data) <- rownames(annotations)
   
   # set heatmap color palette
@@ -230,6 +226,8 @@ draw_general_heatmap <- function(data = targetCountMatrix,
                                                        "RdYlBu")))(100)
   }
   
+  scale_cutoff <- abs(scale_cutoff)
+  
   # plot pheatmap
   p <- pheatmap(mat = data,
                 color = heatmap_colors, 
@@ -238,6 +236,7 @@ draw_general_heatmap <- function(data = targetCountMatrix,
                 clustering_distance_cols = clustering_distance,
                 legend_breaks = seq(-scale_cutoff, scale_cutoff, 1),
                 legend_labels = seq(-scale_cutoff, scale_cutoff, 1),
+                breaks = seq(-scale_cutoff, scale_cutoff, length.out = 100),
                 fontsize = 10,
                 labels_row = rownames(data),
                 cellheight = ifelse(nrow(data) < 63, 11, NA),
