@@ -230,7 +230,6 @@ draw_general_heatmap <- function(data = targetCountMatrix,
   # shift zeros to one
   if (any(data) == 0) {
     data[data == 0] <- 1L
-    }
   }
   
   # log2 transform data
