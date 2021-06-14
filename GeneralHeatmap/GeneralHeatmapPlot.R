@@ -108,15 +108,28 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
   # setup output file
   if (file_type == "pdf") {
     pdf(file = file.path(outputFolder, "GeneralHeatmap.pdf", fsep = .Platform$file.sep), width = pdf_width, height = pdf_height)
-  }
-  if (file_type == "svg") {
+  } else if (file_type == "svg") {
     svg(file = file.path(outputFolder, "GeneralHeatmap.svg", fsep = .Platform$file.sep), width = pdf_width, height = pdf_height)
-  }
-  if (file_type == "png") {
+  } else if (file_type == "png") {
     png(file = file.path(outputFolder, "GeneralHeatmap.png", fsep = .Platform$file.sep), width = pdf_width, height = pdf_height, units = "in", res = 2000)
-  }
-  if (file_type == "tiff") {
+  } else if (file_type == "tiff") {
     tiff(file = file.path(outputFolder, "GeneralHeatmap.tiff", fsep = .Platform$file.sep), width = pdf_width, height = pdf_height, units = "in", res = 150)
+  } else {
+    stop("Error: file_type must be pdf, svg, png, or tiff")
+  }
+  
+  # checks for user inputs
+  if (!is.numeric(scale_cutoff)) {
+    stop("Error: scale_cutoff must be numeric")
+  }
+  if (!is.numeric(fontsize)) {
+    stop("Error: fontsize must be numeric")
+  }
+  if (!is.numeric(pdf_width)) {
+    stop("Error: scale_cutoff must be numeric")
+  }
+  if (!is.numeric(pdf_height)) {
+    stop("Error: scale_cutoff must be numeric")
   }
   
   # call plotting function
@@ -176,7 +189,7 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
 
 draw_general_heatmap <- function(data = targetCountMatrix,
                                  heatmap_colors = NULL,
-                                 scale_cutoff = 3,
+                                 scale_cutoff = 3L,
                                  annotations = segmentAnnotations,
                                  annotations_to_show = NULL,
                                  annotation_colors = NULL,
@@ -186,15 +199,15 @@ draw_general_heatmap <- function(data = targetCountMatrix,
                                  scale = "row",
                                  show_sample_names = FALSE,
                                  show_target_names = FALSE,
-                                 fontsize = 10, 
+                                 fontsize = 10L, 
                                  plot_title = "log2 Change from Mean", ...) {
   
   
   # subset annotations data
   if (!is.null(annotations_to_show)) {
     annotations <- subset(annotations, select = c("segmentDisplayName", annotations_to_show))
-    annot_rownames <- annotations[,1]
-    annotations <- annotations[,-1, drop = FALSE]
+    annot_rownames <- annotations[,1L]
+    annotations <- annotations[,-1L, drop = FALSE]
     rownames(annotations) <- annot_rownames
   } else {
     annotations <- NULL
@@ -209,9 +222,15 @@ draw_general_heatmap <- function(data = targetCountMatrix,
     }
     
     gaps_col <- match(unique(annotations[,sort_by]), annotations[,sort_by])
-    gaps_col <- gaps_col[2:length(gaps_col)] - 1
+    gaps_col <- gaps_col[2L:length(gaps_col)] - 1L
   } else{
     gaps_col <- NULL
+  }
+  
+  # shift zeros to one
+  if (any(data) == 0) {
+    data[data == 0] <- 1L
+    }
   }
   
   # log2 transform data
@@ -220,10 +239,10 @@ draw_general_heatmap <- function(data = targetCountMatrix,
   
   # set heatmap color palette
   if (!is.null(heatmap_colors)) {
-    heatmap_colors <- colorRampPalette(heatmap_colors)(100)
+    heatmap_colors <- colorRampPalette(heatmap_colors)(100L)
   } else {
-    heatmap_colors <- colorRampPalette(rev(brewer.pal(n = 7, name =
-                                                       "RdYlBu")))(100)
+    heatmap_colors <- colorRampPalette(rev(brewer.pal(n = 7L, name =
+                                                       "RdYlBu")))(100L)
   }
   
   scale_cutoff <- abs(scale_cutoff)
@@ -234,13 +253,13 @@ draw_general_heatmap <- function(data = targetCountMatrix,
                 cluster_cols = is.null(sort_by),
                 clustering_distance_rows = clustering_distance,
                 clustering_distance_cols = clustering_distance,
-                legend_breaks = seq(-scale_cutoff, scale_cutoff, 1),
-                legend_labels = seq(-scale_cutoff, scale_cutoff, 1),
-                breaks = seq(-scale_cutoff, scale_cutoff, length.out = 100),
-                fontsize = 10,
+                legend_breaks = seq(-scale_cutoff, scale_cutoff, 1L),
+                legend_labels = seq(-scale_cutoff, scale_cutoff, 1L),
+                breaks = seq(-scale_cutoff, scale_cutoff, length.out = 100L),
+                fontsize = fontsize,
                 labels_row = rownames(data),
-                cellheight = ifelse(nrow(data) < 63, 11, NA),
-                cellwidth = ifelse(ncol(data) < 51, 11, NA),
+                cellheight = ifelse(nrow(data) < 63L, 11L, NA),
+                cellwidth = ifelse(ncol(data) < 51L, 11L, NA),
                 border_color = NA,
                 show_colnames = show_sample_names,
                 show_rownames = show_target_names,
