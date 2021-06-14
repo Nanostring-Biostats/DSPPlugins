@@ -50,15 +50,15 @@ heatmap_colors <- NULL #e.g. c("navy", "white", "firebrick3")
 scale_cutoff <- 3
 
 # set whether sample and target names should be shown:
-show_sample_names = FALSE
-show_target_names = FALSE
+show_sample_names <- FALSE
+show_target_names <- FALSE
 
 # set clustering options for unsupervised clustering:
 clustering_distance <- "euclidean" #options: "euclidean", "correlation" (Pearson's), "maximum", "manhattan", "canberra", "binary", or "minkowski"
 scale <- "row" #options: "none", "row", "column"
 
 fontsize <- 10
-plot_title = "log2 Change from Mean"
+plot_title <- "log2 Change from Mean"
 
 # set output file type for plot:
 file_type <- "pdf" # other options:"svg", "png", "tiff"
@@ -197,7 +197,7 @@ draw_general_heatmap <- function(data = targetCountMatrix,
     annotations <- annotations[,-1, drop = FALSE]
     rownames(annotations) <- annot_rownames
   } else {
-    annotations = NULL
+    annotations <- NULL
   }
   
   # sort annotations and set up white spaces between levels
