@@ -228,13 +228,18 @@ draw_general_heatmap <- function(data = targetCountMatrix,
   }
   
   # shift zeros to one
-  if (any(data) == 0) {
-    data[data == 0] <- 1L
+  if (any(as.vector(data) == 0)) {
+    for (i in seq_along(colnames(data))) {
+      data[which(data[,i] == 0),i] <- 1
+    }
   }
   
   # log2 transform data
   data <- data.frame(log2(data))
   colnames(data) <- rownames(annotations)
+  
+  # remove all zero rows
+  data = data[rowSums(data[]) != 0,]
   
   # set heatmap color palette
   if (!is.null(heatmap_colors)) {
