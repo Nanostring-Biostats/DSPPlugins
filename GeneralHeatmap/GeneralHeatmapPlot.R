@@ -126,10 +126,10 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
     stop("Error: fontsize must be numeric")
   }
   if (!is.numeric(pdf_width)) {
-    stop("Error: scale_cutoff must be numeric")
+    stop("Error: pdf_width must be numeric")
   }
   if (!is.numeric(pdf_height)) {
-    stop("Error: scale_cutoff must be numeric")
+    stop("Error: pdf_height must be numeric")
   }
   
   # call plotting function
@@ -175,7 +175,7 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
 #' @import RColorBrewer
 #' draw_general_heatmap(data = targetCountMatrix,
 #' heatmap_colors = c("navy", "white", "firebrick3"),
-#' scale_cutoffs = 3,
+#' scale_cutoff = 3,
 #' annotations = segmentAnnotations,
 #' annotations_to_show = c("RIOName", "ScanName"),
 #' annotation_colors = NULL,
