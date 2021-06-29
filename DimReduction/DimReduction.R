@@ -32,8 +32,8 @@ save_as = "pdf"
 # options: pdf, jpeg, tiff, png, bmp, or svg
 
 # customize colors for datapoints
-plot_colors = list("green3", "cyan3", "etc")
-color_levels = c("sample1", "sample2", "etc")
+plot_colors = NULL
+color_levels = NULL
 # color_levels must match the names in the
 # color_by factor column in the DSPDA annotation file 
 # when using the factor of interest. color_levels 
