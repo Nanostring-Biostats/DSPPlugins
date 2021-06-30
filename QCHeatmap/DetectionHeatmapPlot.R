@@ -1,51 +1,94 @@
-### function to draw QC heatmap plot
+# QC Heatmap #
+
+# Produces heatmap with probe detection barplot
+# Supports: DSP
+# Note: 
+# Please do not use spaces, special characters, or numbers when adding factors
+# in the DSPDA Annotation file
+
+##############################
+#        User Options        #
+##############################
+
+# users can modify following arguments - currently set to defaults
+
+detection_thresh <- 10
+annotations_to_show <- NULL
+heatmap_color_breaks <- c(0, 2, 5, 10, 50)
+heatmap_color_palette <- c("white", "white", "cadetblue2", "cadetblue4", "darkblue")
+heatmap_height <- 15
+column_detection_barplot <- FALSE
+proportion_detect_thresh <- .10
+cluster_columns <- TRUE
+row_detection_barplot <- TRUE
+plot_title <- "Signal-To-Noise Ratio"
+legend_title <- "SNR"
+
+
+### Advanced User Inputs
+
+
+##########################################################
+#### End of User Inputs. PLEASE DO NOT CHANGE CODE BELOW HERE  ####
+##########################################################
+# MIT License
+# Copyright 2020 Nanostring Technologies, Inc.
+# Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the “Software”), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+# The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+# THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+# Contact us: 
+#   NanoString Technologies, Inc.
+#   530 Fairview Avenue N
+#   Seattle, WA 98109
+# Tel: (888) 358-6266
+##############################
+
+##############################
+#        Execution Code      # 
+##############################
+
+# dependent libraries
+library(circlize)
+library(ComplexHeatmap)
+library(ggplot2)
+library(purrr)
+library(dplyr)
 
 # main function called by DSP-DA
 main <- function(dataset, segmentAnnotations, targetAnnotations, targetCountMatrix, outputFolder) {
   
-  #### Function Inputs ------------------------------------------------
-  
-  # users can modify following arguments - currently set to default values
-  
-  detection_thresh <- 10
-  annotations_to_show <- NULL
-  heatmap_color_breaks <- c(0, 2, 5, 10, 50)
-  heatmap_color_palette <- c("white", "white", "cadetblue2", "cadetblue4", "darkblue")
-  heatmap_height <- 15
-  column_detection_barplot <- FALSE
-  proportion_detect_thresh <- .10
-  cluster_columns <- TRUE
-  row_detection_barplot <- TRUE
-  plot_title <- "Signal-To-Noise Ratio"
-  legend_title <- "SNR"
-  
-  
-  #### Do not modify below! ------------------------------------------------
-  
-  # dependent libraries
-  library(circlize)
-  library(ComplexHeatmap)
+
+  # make unique sample identifiers instead of GUIDs
+  targetCountMatrix <- dataset
+  segmentAnnotationsMod <- segmentAnnotations %>%
+    mutate(segmentDisplayName = paste(ScanName, ROIName, SegmentName, sep=" | "))
+  names(targetCountMatrix) <- segmentAnnotationsMod[match(names(targetCountMatrix), segmentAnnotationsMod[ , "segmentID"]), "segmentDisplayName"]  
+  rownames(targetCountMatrix) <- targetAnnotations[match(rownames(targetCountMatrix), targetAnnotations[ , "TargetGUID"]), "TargetName"]
   
   # calculate SNR matrix from background
-  bg <= derive_GeoMx_background(norm = targetCountMatrix, probepool = targetAnnotations$ProbePool, negnames = targetAnnotations$TargetName[targetAnnotations$CodeClass == "Negative"])
+  bg <- derive_GeoMx_background(norm = targetCountMatrix, probepool = targetAnnotations$ProbePool, negnames = targetAnnotations$TargetName[targetAnnotations$CodeClass == "Negative"])
   targetSNR <- targetCountMatrix/bg
+  
+  # checks for user inputs
+  
+  
   
   
   # call plotting function
   pdf(file = file.path(outputFolder, "QCheatmap.pdf", fsep = .Platform$file.sep))
   draw_detection_heatmap(SNR_data = t(targetSNR), 
-                          detection_thresh,
-                          annotations = segmentAnnotations,
-                          annotations_to_show,
-                          heatmap_color_breaks, 
-                          heatmap_color_palette,
-                          heatmap_height,
-                          column_detection_barplot, 
-                          proportion_detect_thresh, 
-                          cluster_columns,
-                          row_detection_barplot, 
-                          plot_title,
-                          legend_title)
+                          detection_thresh = detection_thresh,
+                          annotations = segmentAnnotationsMod,
+                          annotations_to_show = annotations_to_show,
+                          heatmap_color_breaks = heatmap_color_breaks, 
+                          heatmap_color_palette = heatmap_color_palette,
+                          heatmap_height = heatmap_height,
+                          column_detection_barplot = column_detection_barplot, 
+                          proportion_detect_thresh = proportion_detect_thresh, 
+                          cluster_columns = cluster_columns,
+                          row_detection_barplot = row_detection_barplot, 
+                          plot_title = plot_title,
+                          legend_title = legend_title)
   dev.off()
 }
 
@@ -217,10 +260,10 @@ draw_detection_heatmap = function(SNR_data,
   
   ## row barplot annotation ##
   if (row_detection_barplot == TRUE) {
-    # make vector of % deteched (>2) in each row
+    # make vector of % deteched in each row
     row_detect_vec <- rowSums(mat > detection_thresh)/ncol(mat)
     
-    # make vector of colors for rows with less than 10% detection
+    # make vector of colors for rows with less than proportion_detect_thresh
     row_color_vec = row_detect_vec < proportion_detect_thresh
     row_color_vec[row_color_vec == "TRUE"] <- "red"
     row_color_vec[row_color_vec == "FALSE"] <- "grey"
