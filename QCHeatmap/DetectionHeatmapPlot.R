@@ -12,7 +12,7 @@
 
 # users can modify following arguments - currently set to defaults
 
-detection_thresh <- 10
+detection_thresh <- 2
 annotations_to_show <- NULL
 heatmap_color_breaks <- c(0, 2, 5, 10, 50)
 heatmap_color_palette <- c("white", "white", "cadetblue2", "cadetblue4", "darkblue")
@@ -173,7 +173,7 @@ derive_GeoMx_background <- function(norm, probepool, negnames) {
 #' @import circlize
 #' @import ComplexHeatmap
 #' draw_detection_heatmap(SNR_data = data_mat, 
-#' detection_thresh = 10,
+#' detection_thresh = 2,
 #' annotations = annot_mat,
 #' annotations_to_show = c("Treatment_Type", "Response", "Tissue_Type"),
 #' heatmap_color_breaks = c(0, 10, 20, 50, 100), 
@@ -187,7 +187,7 @@ derive_GeoMx_background <- function(norm, probepool, negnames) {
 
 
 draw_detection_heatmap = function(SNR_data, 
-                                   detection_thresh = 10,
+                                   detection_thresh = 2,
                                    annotations = NULL, 
                                    annotations_to_show = NULL,
                                    heatmap_color_breaks = c(0, 2, 5, 10, 50), 
