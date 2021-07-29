@@ -15,8 +15,7 @@
 detection_thresh <- 2
 annotations_to_show <- NULL
 heatmap_color_breaks <- c(0, 2, 5, 10, 50)
-heatmap_color_palette <- c("white", "white", "cadetblue2", "cadetblue4", "darkblue")
-heatmap_height <- 15
+heatmap_color_palette <- rev(viridis(5)) #c("white", "white", "cadetblue2", "cadetblue4", "darkblue")
 column_detection_barplot <- FALSE
 proportion_detect_thresh <- .10
 cluster_columns <- TRUE
@@ -27,6 +26,12 @@ legend_title <- "SNR"
 
 ### Advanced User Inputs
 
+# set output file type for plot:
+file_type <- "pdf" # other options:"svg", "png", "tiff"
+
+# set aspect ratio of output file:
+pdf_width <- 12 
+pdf_height <- 7 
 
 ##########################################################
 #### End of User Inputs. PLEASE DO NOT CHANGE CODE BELOW HERE  ####
@@ -69,13 +74,26 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, targetCountMatr
   bg <- derive_GeoMx_background(norm = targetCountMatrix, probepool = targetAnnotations$ProbePool, negnames = targetAnnotations$TargetName[targetAnnotations$CodeClass == "Negative"])
   targetSNR <- targetCountMatrix/bg
   
+  # setup output file
+  if (file_type == "pdf") {
+    pdf(file = file.path(outputFolder, "QCHeatmap.pdf", fsep = .Platform$file.sep), width = pdf_width, height = pdf_height)
+  } else if (file_type == "svg") {
+    svg(file = file.path(outputFolder, "QCHeatmap.svg", fsep = .Platform$file.sep), width = pdf_width, height = pdf_height)
+  } else if (file_type == "png") {
+    png(file = file.path(outputFolder, "QCHeatmap.png", fsep = .Platform$file.sep), width = pdf_width, height = pdf_height, units = "in", res = 2000)
+  } else if (file_type == "tiff") {
+    tiff(file = file.path(outputFolder, "QCHeatmap.tiff", fsep = .Platform$file.sep), width = pdf_width, height = pdf_height, units = "in", res = 150)
+  } else {
+    stop("Error: file_type must be pdf, svg, png, or tiff")
+  }
+  
   # checks for user inputs
   
+
   
   
   
   # call plotting function
-  pdf(file = file.path(outputFolder, "QCheatmap.pdf", fsep = .Platform$file.sep))
   draw_detection_heatmap(SNR_data = t(targetSNR), 
                           detection_thresh = detection_thresh,
                           annotations = segmentAnnotationsMod,
@@ -191,7 +209,7 @@ draw_detection_heatmap = function(SNR_data,
                                    annotations = NULL, 
                                    annotations_to_show = NULL,
                                    heatmap_color_breaks = c(0, 2, 5, 10, 50), 
-                                   heatmap_color_palette = c("white", "white", "cadetblue2", "cadetblue4", "darkblue"),
+                                   heatmap_color_palette = rev(viridis(5)),
                                    heatmap_height = 15,
                                    column_detection_barplot = FALSE, 
                                    proportion_detect_thresh = .10, 
@@ -208,7 +226,6 @@ draw_detection_heatmap = function(SNR_data,
   colors <- heatmap_color_palette
   
   col_fun <- colorRamp2(breaks = breaks, colors = colors)
-  
   
   ## row annotations ##
   
@@ -302,7 +319,7 @@ draw_detection_heatmap = function(SNR_data,
                 top_annotation = col_ha,
                 show_row_names = FALSE,
                 show_column_names = FALSE,
-                heatmap_height = unit(heatmap_height, "cm"),
+                show_column_dend = FALSE,
                 cluster_columns = cluster_columns,
                 column_order = column_order,
                 column_title = plot_title, ...)
