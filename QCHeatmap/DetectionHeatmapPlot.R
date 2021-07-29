@@ -35,19 +35,23 @@ if (custom_annotation_colors) {
 
 
 
-
 ### Advanced User Inputs
 
+# set threshold for detection and proportion of targets below threshold to be called out
 detection_thresh <- 2
 proportion_detect_thresh <- .10
 
 
-# choose heatmap color scheme and breaks (optional):
+# set heatmap color scheme and breaks:
 heatmap_color_breaks <- c(0, 2, 5, 10, 50)
 heatmap_color_palette <- rev(viridis(5)) #c("white", "white", "cadetblue2", "cadetblue4", "darkblue")
 
+# turn column barplot on or off 
 column_detection_barplot <- FALSE
+# set whether columns are clustered.  if FALSE and column_detection_barplot <- TRUE, then columns ordered by % detected
 cluster_columns <- TRUE
+
+# turn row barplot on or off
 row_detection_barplot <- TRUE
 
 plot_title <- "Signal-To-Noise Ratio"
