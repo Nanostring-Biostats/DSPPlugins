@@ -116,9 +116,21 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, targetCountMatr
   }
   
   # checks for user inputs
-  
-
-  
+  if (!is.vector(heatmap_color_breaks)) {
+    stop("Error: heatmap_color_breaks must be a vector")
+  }
+  if (!is.vector(heatmap_color_palette)) {
+    stop("Error: heatmap_color_palette must be a vector")
+  }
+  if (proportion_detect_thresh > 1) {
+    stop("Error: proportion_detect_thresh must be less than or equal to 1")
+  }
+  if (!is.numeric(pdf_width)) {
+    stop("Error: pdf_width must be numeric")
+  }
+  if (!is.numeric(pdf_height)) {
+    stop("Error: pdf_height must be numeric")
+  }
   
   
   # call plotting function
