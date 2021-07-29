@@ -12,19 +12,46 @@
 
 # users can modify following arguments - currently set to defaults
 
-detection_thresh <- 2
-annotations_to_show <- NULL
-heatmap_color_breaks <- c(0, 2, 5, 10, 50)
-heatmap_color_palette <- rev(viridis(5)) #c("white", "white", "cadetblue2", "cadetblue4", "darkblue")
-column_detection_barplot <- FALSE
-proportion_detect_thresh <- .10
-cluster_columns <- TRUE
-row_detection_barplot <- TRUE
-plot_title <- "Signal-To-Noise Ratio"
-legend_title <- "SNR"
+# define annotations to show in heatmap (optional):
+annotations_to_show <- NULL #e.g. c("TissueType", "Response")
+
+# define coloring of annotations (optional):
+# 1: set the next line to TRUE:
+custom_annotation_colors <- FALSE
+# 2: then modify the example syntax below
+if (custom_annotation_colors) {
+  # example syntax
+  annotation_colors <- list(
+    TissueType = c(
+      "Normal" = "green", 
+      "Disease" = "red"), 
+    Response = c(
+      "NR" = "blue", 
+      "R" = "orange"))
+} else {
+  annotation_colors <- NULL
+}
+# for a list of R colors, see http://www.stat.columbia.edu/~tzheng/files/Rcolor.pdf
+
+
 
 
 ### Advanced User Inputs
+
+detection_thresh <- 2
+proportion_detect_thresh <- .10
+
+
+# choose heatmap color scheme and breaks (optional):
+heatmap_color_breaks <- c(0, 2, 5, 10, 50)
+heatmap_color_palette <- rev(viridis(5)) #c("white", "white", "cadetblue2", "cadetblue4", "darkblue")
+
+column_detection_barplot <- FALSE
+cluster_columns <- TRUE
+row_detection_barplot <- TRUE
+
+plot_title <- "Signal-To-Noise Ratio"
+legend_title <- "SNR"
 
 # set output file type for plot:
 file_type <- "pdf" # other options:"svg", "png", "tiff"
@@ -58,6 +85,7 @@ library(ComplexHeatmap)
 library(ggplot2)
 library(purrr)
 library(dplyr)
+library(viridis)
 
 # main function called by DSP-DA
 main <- function(dataset, segmentAnnotations, targetAnnotations, targetCountMatrix, outputFolder) {
@@ -98,6 +126,7 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, targetCountMatr
                           detection_thresh = detection_thresh,
                           annotations = segmentAnnotationsMod,
                           annotations_to_show = annotations_to_show,
+                          annotation_colors = annotation_colors,
                           heatmap_color_breaks = heatmap_color_breaks, 
                           heatmap_color_palette = heatmap_color_palette,
                           heatmap_height = heatmap_height,
@@ -174,9 +203,9 @@ derive_GeoMx_background <- function(norm, probepool, negnames) {
 #' @param detection_thresh minimum threshold for detection
 #' @param annotations matrix of annotations with clinical variables as columns
 #' @param annotations_to_show list of annotation column names to be shown as color bars on left side of heatmap
+#' @param annotation_colors named list of lists specifying colors for each level of annotations_to_show
 #' @param heatmap_color_breaks optional list of break points for heatmap colors
 #' @param heatmap_color_palette optional list of colors for heatmap.  Must be same length as heatmap_color_breaks
-#' @param heatmap_height optional value in cm
 #' @param column_detection_barplot TRUE or FALSE to determine whether to show column barplot of % detected genes
 #' @param proportion_detect_thresh minimum threshold for proportion of detection, entered as a decimal point
 #' @param cluster_columns TRUE or FALSE. If FALSE and column_detection_barplots = TRUE, then columns ordered by % detected
@@ -194,9 +223,9 @@ derive_GeoMx_background <- function(norm, probepool, negnames) {
 #' detection_thresh = 2,
 #' annotations = annot_mat,
 #' annotations_to_show = c("Treatment_Type", "Response", "Tissue_Type"),
+#' annotation_colors = NULL,
 #' heatmap_color_breaks = c(0, 10, 20, 50, 100), 
 #' heatmap_color_palette = c("red4", "red4", "tomato", "white", "blue"),
-#' heatmap_height = 15,
 #' column_detection_barplot = FALSE,
 #' proportion_detect_thresh = .10,
 #' cluster_columns = TRUE)
@@ -206,11 +235,11 @@ derive_GeoMx_background <- function(norm, probepool, negnames) {
 
 draw_detection_heatmap = function(SNR_data, 
                                    detection_thresh = 2,
-                                   annotations = NULL, 
+                                   annotations = NULL,
                                    annotations_to_show = NULL,
+                                   annotation_colors = NULL,
                                    heatmap_color_breaks = c(0, 2, 5, 10, 50), 
                                    heatmap_color_palette = rev(viridis(5)),
-                                   heatmap_height = 15,
                                    column_detection_barplot = FALSE, 
                                    proportion_detect_thresh = .10, 
                                    cluster_columns = TRUE,
@@ -236,7 +265,14 @@ draw_detection_heatmap = function(SNR_data,
   } else {
     anno_df <- as.data.frame(annotations[,annotations_to_show])
     colnames(anno_df) <- annotations_to_show
-    row_ha_clinical <- rowAnnotation(df = anno_df)
+    
+    # add custom annotation colors if defined
+    if (!is.null(annotation_colors)){
+      row_ha_clinical <- rowAnnotation(df = anno_df, 
+                                       col = annotation_colors)
+    } else {
+      row_ha_clinical <- rowAnnotation(df = anno_df)
+    }
   }
   
   
