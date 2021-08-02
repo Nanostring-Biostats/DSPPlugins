@@ -44,18 +44,21 @@ proportion_detect_thresh <- .10
 
 # set heatmap color scheme and breaks:
 heatmap_color_breaks <- c(0, 2, 5, 10, 50)
-heatmap_color_palette <- rev(viridis(5)) #c("white", "white", "cadetblue2", "cadetblue4", "darkblue")
+heatmap_color_palette <- rev(viridis(5)) #e.g. c("white", "white", "cadetblue2", "cadetblue4", "darkblue")
 
-# turn column barplot on or off 
+# turn column barplot on or off:
 column_detection_barplot <- FALSE
 # set whether columns are clustered.  if FALSE and column_detection_barplot <- TRUE, then columns ordered by % detected
 cluster_columns <- TRUE
 
-# turn row barplot on or off
+# turn row barplot on or off:
 row_detection_barplot <- TRUE
 
 plot_title <- "Signal-To-Noise Ratio"
 legend_title <- "SNR"
+
+# set font size for barplot annotations
+annot_fontsize <- 10
 
 # set output file type for plot:
 file_type <- "pdf" # other options:"svg", "png", "tiff"
@@ -92,7 +95,7 @@ library(dplyr)
 library(viridis)
 
 # main function called by DSP-DA
-main <- function(dataset, segmentAnnotations, targetAnnotations, targetCountMatrix, outputFolder) {
+main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
   
 
   # make unique sample identifiers instead of GUIDs
@@ -129,6 +132,9 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, targetCountMatr
   if (proportion_detect_thresh > 1) {
     stop("Error: proportion_detect_thresh must be less than or equal to 1")
   }
+  if (!is.numeric(annot_fontsize)) {
+    stop("Error: annot_fontsize must be numeric")
+  }
   if (!is.numeric(pdf_width)) {
     stop("Error: pdf_width must be numeric")
   }
@@ -145,13 +151,13 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, targetCountMatr
                           annotation_colors = annotation_colors,
                           heatmap_color_breaks = heatmap_color_breaks, 
                           heatmap_color_palette = heatmap_color_palette,
-                          heatmap_height = heatmap_height,
                           column_detection_barplot = column_detection_barplot, 
                           proportion_detect_thresh = proportion_detect_thresh, 
                           cluster_columns = cluster_columns,
                           row_detection_barplot = row_detection_barplot, 
                           plot_title = plot_title,
-                          legend_title = legend_title)
+                          legend_title = legend_title,
+                          annot_fontsize = annot_fontsize)
   dev.off()
 }
 
@@ -228,6 +234,7 @@ derive_GeoMx_background <- function(norm, probepool, negnames) {
 #' @param row_detection_barplot TRUE or FALSE to determine whether to show row barplot of % detected samples
 #' @param plot_title title for plot displayed on the top.  Default is "Signal-To-Noise Ratio".  Set as "" for no title
 #' @param legend_title title for heatmap legend.  Default is "SNR".  Set as "" for no title
+#' @param annot_fontsize font size for sample names called out for low detection next to row barplot
 #' 
 #' @return Stratified heatmap with annotations and legends
 #' 
@@ -261,7 +268,8 @@ draw_detection_heatmap = function(SNR_data,
                                    cluster_columns = TRUE,
                                    row_detection_barplot = FALSE, 
                                    plot_title = "Signal-To-Noise Ratio",
-                                   legend_title = "SNR", ...){
+                                   legend_title = "SNR",
+                                   annot_fontsize = 10, ...){
   
   mat <- SNR_data
   
@@ -344,7 +352,9 @@ draw_detection_heatmap = function(SNR_data,
       row_ha <- rowAnnotation(detected = anno_barplot(row_detect_vec, 
                                                       bar_width = 1, 
                                                       gp = gpar(fill = row_color_vec)),
-                              low_detection = anno_mark(at = match(samples_to_point, rownames(mat)), labels = samples_to_point))
+                              low_detection = anno_mark(at = match(samples_to_point, rownames(mat)), 
+                                                        labels = samples_to_point, 
+                                                        labels_gp = gpar(fontsize = annot_fontsize)))
     } else {
       row_ha <- rowAnnotation(detected = anno_barplot(row_detect_vec, 
                                                       bar_width = 1, 
