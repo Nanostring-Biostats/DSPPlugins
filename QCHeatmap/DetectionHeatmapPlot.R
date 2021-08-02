@@ -43,6 +43,7 @@ proportion_detect_thresh <- .10
 
 
 # set heatmap color scheme and breaks:
+library(viridis)
 heatmap_color_breaks <- c(0, 2, 5, 10, 50)
 heatmap_color_palette <- rev(viridis(5)) #e.g. c("white", "white", "cadetblue2", "cadetblue4", "darkblue")
 
@@ -92,7 +93,6 @@ library(ComplexHeatmap)
 library(ggplot2)
 library(purrr)
 library(dplyr)
-library(viridis)
 
 # main function called by DSP-DA
 main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
