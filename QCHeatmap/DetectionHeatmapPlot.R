@@ -43,9 +43,8 @@ proportion_detect_thresh <- .10
 
 
 # set heatmap color scheme and breaks:
-library(viridis)
-heatmap_color_breaks <- c(0, 2, 5, 10, 50)
-heatmap_color_palette <- rev(viridis(5)) #e.g. c("white", "white", "cadetblue2", "cadetblue4", "darkblue")
+heatmap_color_breaks <- NULL # e.g. c(0, 2, 5, 10, 50)
+heatmap_color_palette <- NULL #e.g. c("white", "white", "cadetblue2", "cadetblue4", "darkblue")
 
 # turn column barplot on or off:
 column_detection_barplot <- FALSE
@@ -93,6 +92,7 @@ library(ComplexHeatmap)
 library(ggplot2)
 library(purrr)
 library(dplyr)
+library(viridis)
 
 # main function called by DSP-DA
 main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
@@ -123,11 +123,14 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
   }
   
   # checks for user inputs
-  if (!is.vector(heatmap_color_breaks)) {
-    stop("Error: heatmap_color_breaks must be a vector")
+  if (!is.null(heatmap_color_breaks) & !is.vector(heatmap_color_breaks)) {
+    stop("Error: heatmap_color_breaks must be NULL or a vector")
   }
-  if (!is.vector(heatmap_color_palette)) {
-    stop("Error: heatmap_color_palette must be a vector")
+  if (!is.null(heatmap_color_palette) &!is.vector(heatmap_color_palette)) {
+    stop("Error: heatmap_color_palette must be NULL or a vector")
+  }
+  if (length(heatmap_color_breaks) != length(heatmap_color_palette)) {
+    stop("Error: heatmap_color_breaks and heatmap_color_palette must be the same length")
   }
   if (proportion_detect_thresh > 1) {
     stop("Error: proportion_detect_thresh must be less than or equal to 1")
@@ -261,8 +264,8 @@ draw_detection_heatmap = function(SNR_data,
                                    annotations = NULL,
                                    annotations_to_show = NULL,
                                    annotation_colors = NULL,
-                                   heatmap_color_breaks = c(0, 2, 5, 10, 50), 
-                                   heatmap_color_palette = rev(viridis(5)),
+                                   heatmap_color_breaks = NULL, 
+                                   heatmap_color_palette = NULL,
                                    column_detection_barplot = FALSE, 
                                    proportion_detect_thresh = .10, 
                                    cluster_columns = TRUE,
@@ -275,8 +278,17 @@ draw_detection_heatmap = function(SNR_data,
   
   # make color function for heatmap
   
-  breaks <- heatmap_color_breaks
-  colors <- heatmap_color_palette
+  if (is.null(heatmap_color_breaks)) {
+    breaks <- c(0, 2, 5, 10, 50)
+  } else {
+    breaks <- heatmap_color_breaks
+  }
+  
+  if (is.null(heatmap_color_palette)) {
+    colors <- rev(viridis(5))
+  } else {
+    colors <- heatmap_color_palette
+  }
   
   col_fun <- colorRamp2(breaks = breaks, colors = colors)
   
