@@ -32,8 +32,8 @@ save_as = "pdf"
 # options: pdf, jpeg, tiff, png, bmp, or svg
 
 # customize colors for datapoints
-plot_colors = list("green3", "cyan3", "etc")
-color_levels = c("sample1", "sample2", "etc")
+plot_colors = NULL
+color_levels = NULL
 # color_levels must match the names in the
 # color_by factor column in the DSPDA annotation file 
 # when using the factor of interest. color_levels 
@@ -113,6 +113,9 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
   
   # Step 3: Graph data
   # if color is a gene symbol add it to the annotations for plotting
+  if(is.null(plot_colors)) {
+    plot_colors <- 'Set1'
+  }
   if(is.null(color_by)) {
     colType <- 'Null'
   } else if(!color_by %in% rownames(targetCountMatrix) &
@@ -130,17 +133,18 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
     # allow users to pass no or incomplete color levels for annotations
     if(is.null(color_levels)) {
       color_levels <- lvls
-      
     } else if(!all(color_levels %in% lvls)) {
       new_lvls <- lvls[!lvls %in% color_levels]
       color_levels <- c(color_levels[color_levels %in% lvls],
                         new_lvls)
+      if(length(color_levels) > length(plot_colors) & 
+         (!plot_colors[[1]] %in% rownames(brewer.pal.info))) {
+        plot_colors <- c(plot_colors,
+                         extend_palette(n = length(new_lvls)))
+      }
     }
-    if(length(color_levels) > length(plot_colors) & 
-       (!plot_colors[[1]] %in% rownames(brewer.pal.info))) {
-      plot_colors <- c(plot_colors,
-                       extend_palette(n = length(new_lvls)))
-    }
+    
+    
   }
   
   # Size by calculation:
