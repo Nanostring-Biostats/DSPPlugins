@@ -1,6 +1,16 @@
 # Changelog
 All notable changes to the DimReduction.R plugin for GeoMx(R) DSP will be documented in this file.
 
+## [1.2] - 2021-08-31
+### Changed 
+- Amendment of extend_palette to avoid warning when extending < 3
+- Edited vignette
+- Updated plug-in to clarify it is compatible with WTA products
+
+### Added
+- Augmented validation of arguments passed into the function
+- References to vignette for color choices and options in plug-in annotations
+
 ## [1.1] - 2021-03-12
 ### Changed 
 - PCA function updated to use scaling

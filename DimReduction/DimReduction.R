@@ -1,14 +1,14 @@
 # Dimension Reduction #
-# Version 1.1 #
+# Version 1.2 #
 
 # Produces PCA, tSNE, or UMAP visualizations
-# Supports: DSP-nCounter Protein, DSP-nCounter RNA, DSP-NGS CTA
+# Supports: DSP-nCounter Protein, DSP-nCounter RNA, DSP-NGS CTA, DSP-NGS WTA (mouse & human)
 # Note: this script should be run only on a dataset AFTER normalization
 # Please do not use spaces, special characters, or numbers when adding factors
 # in the DSPDA Annotation file
 
-#        User Options        #
-##############################
+#        User Options         #
+###############################
 
 plot_type = "PCA"
 # Options: tSNE, UMAP, PCA
@@ -16,7 +16,7 @@ plot_type = "PCA"
 # Plot Parameters
 
 color_by = "ScanName"
-# select factor or target of interest OR NULL
+# select factor OR target of interest OR NULL
 shape_by = "SegmentName"
 # select factor of interest OR NULL
 size_by = NULL
@@ -32,24 +32,30 @@ save_as = "pdf"
 # options: pdf, jpeg, tiff, png, bmp, or svg
 
 # customize colors for datapoints
-plot_colors = list("green3", "cyan3", "etc")
-color_levels = c("sample1", "sample2", "etc")
-# color_levels must match the names in the
+plot_colors = NULL
+color_levels = NULL
+# color_levels *must* match the names in the
 # color_by factor column in the DSPDA annotation file 
 # when using the factor of interest. color_levels 
 # may be set to NULL, and the plugin will 
-# automatically assign levels to the colors.
+# automatically assign colors to the levels.
 #
 # When coloring by a target use "High", "Low" 
 # and "Mid". "Mid" is optional.
 # 
-# for example, if we: color_by = "CD68" then
+# Valid named color choices for plot_colors can be  
+# found in the vignette or standard hexidecimal
+# colors (e.g. '#3311FF')
+# 
+# for example, if we: color_by = "CD68", then
 # plot_colors = list("red", "white", "blue")
 # color_levels = c("High", "Mid", "Low")
 #
-# The first entry in plot_colors may be set 
-# to a r color palette if coloring using 
-# annotations. The palette order shall be 
+# The first entry in plot_colors may also be set 
+# to an *r color palette* when coloring using 
+# annotations. For valid palette choices, refer
+# to the vignette.
+# The palette order shall be 
 # alphabetical unless values of color_by 
 # are provided in color_levels, in which 
 # case that order shall be used.
@@ -112,49 +118,67 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
   }
   
   # Step 3: Graph data
-  # if color is a gene symbol add it to the annotations for plotting
-  if(is.null(color_by)) {
+  # check that requested output type is valid option
+  if(!save_as %in% c('pdf', 'jpeg', 'tiff', 'png', 'bmp', 'svg')) {
+    fail(message = 'Invalid filetype chosen. Please choose from: pdf, jpeg, tiff, png, bmp, or svg')
+  }
+  
+  # if color is a gene symbol add it to the annotations for plotting, catch NA or NULL
+  if(is.null(color_by) | is.na(color_by)) {
     colType <- 'Null'
   } else if(!color_by %in% rownames(targetCountMatrix) &
             !color_by %in% colnames(segmentAnnotations)) {
     fail(message = 'Color not found. Please confirm that your color feature is either a column in Segment Properties or a Target name from your target count matrix')
-  } else if(color_by %in% rownames(targetCountMatrix)) {
+  } else if(!color_by %in% rownames(targetCountMatrix) &
+            !color_by %in% colnames(segmentAnnotations)) {
     if(!all(color_levels %in% c("High", "Mid", "Low"))) {
       fail(message = 'Incorrect color level definition. Please use color_levels = c("High", "Mid", "Low") or c("High", "Low") when using a Target for coloring')
     }
     segmentAnnotations[, color_by] <- unlist(log2(targetCountMatrix[color_by, ]))
     colType <- 'Target'
   } else {
-    lvls <- unique(segmentAnnotations[, color_by])
+    lvls <- as.character(unique(segmentAnnotations[, color_by]))
     colType <- 'Annot'
     # allow users to pass no or incomplete color levels for annotations
     if(is.null(color_levels)) {
       color_levels <- lvls
-      
-    } else if(!all(color_levels %in% lvls)) {
+    } else if(!all(lvls %in% color_levels)) {
       new_lvls <- lvls[!lvls %in% color_levels]
-      color_levels <- c(color_levels[color_levels %in% lvls],
+      color_levels <- c(color_levels[lvls %in% color_levels],
                         new_lvls)
     }
-    if(length(color_levels) > length(plot_colors) & 
-       (!plot_colors[[1]] %in% rownames(brewer.pal.info))) {
-      plot_colors <- c(plot_colors,
-                       extend_palette(n = length(new_lvls)))
+    # lengthen palette to assign to all levels, catch case of 
+    # any NULL or NA value
+    if(sum(is.null(plot_colors)) == 0 & sum(is.na(plot_colors)) == 0) {
+      # test for valid colors, overridden if first value is a valid palette
+      if (sum(!(are_valid_colors(plot_colors) | 
+           (plot_colors[[1]] %in% rownames(brewer.pal.info)))) > 0) {
+        fail(message = 'Invalid color choice(s). Please use an RBrewer palette, hexidecimal colors, or valid color. Find links in plug-in vignette.')
+      }
+      if(length(color_levels) > length(plot_colors) &
+         (!plot_colors[[1]] %in% rownames(brewer.pal.info))) {
+        plot_colors <- c(plot_colors,
+                         extend_palette(n = length(new_lvls)))
+      }
+    } else if (sum(is.null(plot_colors)) > 0 | sum(is.na(plot_colors)) > 0) {
+      plot_colors <- c(extend_palette(n = length(lvls)))
     }
   }
   
   # Size by calculation:
   if(!is.null(size_by)) {
-    if(size_by %in% rownames(targetCountMatrix)) {
-      if(isTRUE(size_by == color_by)) {
-        trg <- unlist(targetCountMatrix[size_by, ])
-        size_by <- paste0(size_by,'_linear')
-        segmentAnnotations[[size_by]] <- trg
+    if (!is.na(size_by)) {
+      if(size_by %in% rownames(targetCountMatrix)) {
+        if(isTRUE(size_by == color_by)) {
+          trg <- unlist(targetCountMatrix[size_by, ])
+          size_by <- paste0(size_by,'_linear')
+          segmentAnnotations[[size_by]] <- trg
+        } else {
+          segmentAnnotations[[size_by]] <- unlist(targetCountMatrix[size_by, ])
+        }
       } else {
-        segmentAnnotations[[size_by]] <- unlist(targetCountMatrix[size_by, ])
+        fail(message = 'Size not found. Please check to ensure that the target name specified for size is in the target count matrix')
       }
-    } else {
-      fail(message = 'Size not found. Please check to ensure that the target name specified for size is in the target count matrix')
     }
   }
   
@@ -456,14 +480,22 @@ plot_DR <- function(targetCountMatrix = NULL,
 
 # extend_palette: create a brewer.pal color list
 #   not limited by size of palette
+# allow for extension with < 3 requested avoiding warning
 extend_palette <- function(palette = 'Set1',
                            n = 9) {
   pal_n <- brewer.pal.info[palette, 1]
   if(n <= pal_n) {
-    pal <- brewer.pal(n, palette)
+    pal <- brewer.pal(max(n,3), palette)
   } else {
     pal <- brewer.pal(pal_n, palette)
     pal <- colorRampPalette(pal)(n)
   }
-  return(pal)
+  return(pal[1:n])
+}
+
+# test supplied colors for validity
+are_valid_colors <- function(clrs) {
+  sapply(clrs, function(x) {
+    tryCatch(is.matrix(col2rgb(x)), error = function(e) FALSE)
+  })
 }
