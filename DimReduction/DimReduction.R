@@ -128,20 +128,24 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
     colType <- 'Null'
   } else if(!color_by %in% rownames(targetCountMatrix) &
             !color_by %in% colnames(segmentAnnotations)) {
-    fail(message = 'Color not found. Please confirm that your color feature is either a column in Segment Properties or a Target name from your target count matrix')
-  } else if(!color_by %in% rownames(targetCountMatrix) &
-            !color_by %in% colnames(segmentAnnotations)) {
+    fail(message = 'Color_by value not found. Please confirm that your color feature is either a column in Segment Properties or a Target name from your target count matrix')
+  } else if(length(color_by) > 1) {
+    fail(message = 'Color criteria must be only one value! Please pass in only one string value for color_by.')
+  } else if(color_by %in% rownames(targetCountMatrix)) {
     if(!all(color_levels %in% c("High", "Mid", "Low"))) {
       fail(message = 'Incorrect color level definition. Please use color_levels = c("High", "Mid", "Low") or c("High", "Low") when using a Target for coloring')
     }
     segmentAnnotations[, color_by] <- unlist(log2(targetCountMatrix[color_by, ]))
     colType <- 'Target'
-  } else {
+  } else if (color_by %in% colnames(segmentAnnotations)) {
     lvls <- as.character(unique(segmentAnnotations[, color_by]))
     colType <- 'Annot'
     # allow users to pass no or incomplete color levels for annotations
     if(is.null(color_levels)) {
       color_levels <- lvls
+    } else if (!all(color_levels %in% lvls)) {
+      fail(paste0('Invalid level(s) chosen in color_levels not found in Segment Properties: ', 
+                  toString(color_levels[which(!color_levels %in% lvls)])))
     } else if(!all(lvls %in% color_levels)) {
       new_lvls <- lvls[!lvls %in% color_levels]
       color_levels <- c(color_levels[lvls %in% color_levels],
@@ -163,6 +167,8 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
     } else if (sum(is.null(plot_colors)) > 0 | sum(is.na(plot_colors)) > 0) {
       plot_colors <- c(extend_palette(n = length(lvls)))
     }
+  } else {
+    fail(message = 'Color choice found as a Target *and* in a column in Segment Properties. Please alter the column name or drop the gene to resolve the conflict.')
   }
   
   # Size by calculation:
