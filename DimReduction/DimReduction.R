@@ -141,8 +141,8 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
     lvls <- as.character(unique(segmentAnnotations[, color_by]))
     colType <- 'Annot'
     # allow users to pass no or incomplete color levels for annotations
-    if(is.null(color_levels)) {
-      color_levels <- lvls
+    if(sum(is.null(color_levels)) > 0 | sum(is.na(color_levels)) > 0) {
+      color_levels <- lvls # override if NA or NULL detected
     } else if (!all(color_levels %in% lvls)) {
       fail(paste0('Invalid level(s) chosen in color_levels not found in Segment Properties: ', 
                   toString(color_levels[which(!color_levels %in% lvls)])))
@@ -159,13 +159,15 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
            (plot_colors[[1]] %in% rownames(brewer.pal.info)))) > 0) {
         fail(message = 'Invalid color choice(s). Please use an RBrewer palette, hexidecimal colors, or valid color. Find links in plug-in vignette.')
       }
-      if(length(color_levels) > length(plot_colors) &
+      if (length(color_levels) > length(plot_colors) &
          (!plot_colors[[1]] %in% rownames(brewer.pal.info))) {
         plot_colors <- c(plot_colors,
                          extend_palette(n = length(new_lvls)))
+      } else if (length(plot_colors) > length(color_levels)) {
+        plot_colors <- plot_colors[1:length(color_levels)]
       }
     } else if (sum(is.null(plot_colors)) > 0 | sum(is.na(plot_colors)) > 0) {
-      plot_colors <- c(extend_palette(n = length(lvls)))
+      plot_colors <- c(extend_palette(n = length(lvls))) # override if NA or NULL detected
     }
   } else {
     fail(message = 'Color choice found as a Target *and* in a column in Segment Properties. Please alter the column name or drop the gene to resolve the conflict.')
