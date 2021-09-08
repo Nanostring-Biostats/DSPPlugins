@@ -167,7 +167,10 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
       # test for valid colors, overridden if first value is a valid palette
       if(sum(!(are_valid_colors(plot_colors) | 
                 (plot_colors[[1]] %in% rownames(brewer.pal.info)))) > 0) {
-        fail(message = 'Invalid color choice(s). Please use an RBrewer palette, hexidecimal colors, or valid color. Find links in plug-in vignette.')
+        fail(message = paste0('Invalid color choice(s): ',
+                              toString(plot_colors[which((are_valid_colors(plot_colors) | 
+                                 (plot_colors[[1]] %in% rownames(brewer.pal.info))) == 0)]),
+                              '. Please use an RBrewer palette, hexidecimal colors, or valid color. Find links in plug-in vignette.'))
       } else if(plot_colors[[1]] %in% rownames(brewer.pal.info)) { # use provided palette
         plot_colors <- c(extend_palette(palette = plot_colors[[1]], n = length(all_lvls)))
       } else if(length(color_levels) > length(plot_colors)) { # fill in more colors if needed
@@ -449,17 +452,17 @@ plot_DR <- function(targetCountMatrix = NULL,
       mdpt <- rng[2] - (rng[2]-rng[1])/2
       plt <- plt +
         scale_color_gradient2(name = clr_name,
-                              low = params$plot_colors$Low,
-                              mid = params$plot_colors$Mid,
-                              high = params$plot_colors$High,
+                              low = params$plot_colors[['Low']],
+                              mid = params$plot_colors[['Mid']],
+                              high = params$plot_colors[['High']],
                               midpoint = mdpt,
                               guide = "colorbar")
     } else if(all(c("High","Low") %in% names(params$plot_colors))) {
       # 2 point gradient
       plt <- plt +
         scale_color_gradient(name = clr_name,
-                             low = params$plot_colors$Low, 
-                             high = params$plot_colors$High,
+                             low = params$plot_colors[['Low']], 
+                             high = params$plot_colors[['High']],
                              guide = "colorbar")
     }
   }
