@@ -363,7 +363,7 @@ calc_DR <- function(plot_type = NULL,
     # max possible
     tSNE_perplexity <- floor((ncol(targetCountMatrix)-1)*.2) 
     set.seed(seed = 28502)
-    dr_data <- Rtsne(t(log2(targetCountMatrix)), perplexity = tSNE_perplexity)
+    dr_data <- Rtsne(t(log2(targetCountMatrix)), perplexity = tSNE_perplexity, check_duplicates = FALSE)
     segmentAnnotations$Dim1 <- dr_data$Y[, 1]
     segmentAnnotations$Dim2 <- dr_data$Y[, 2]
   } else if(plot_type == "PCA") {
