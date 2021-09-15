@@ -355,6 +355,7 @@ calc_DR <- function(plot_type = NULL,
                     targetCountMatrix = NULL,
                     segmentAnnotations = NULL) {
   if(plot_type == "UMAP") {
+    set.seed(seed = 98031)
     dr_data <- umap(t(log2(targetCountMatrix)), random.state = 28502)
     segmentAnnotations$Dim1 <- dr_data$layout[, 1]
     segmentAnnotations$Dim2 <- dr_data$layout[, 2]
