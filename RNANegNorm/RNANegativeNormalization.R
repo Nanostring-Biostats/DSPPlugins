@@ -25,8 +25,36 @@
 #        Execution Code      # 
 ##############################
 
-# Main function used by DSP-DA
-main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
+# main function with GeoMxSet wrapper
+
+main <- function(obj1, obj2, obj3, obj4){
+  if(class(obj1) == "NanoStringGeoMxSet"){
+    dataset <- exprs(obj1)
+    segmentAnnotations <- pData(obj1)
+    targetAnnotations <- fData(obj1)
+    outputFolder <- obj3
+  }else{
+    dataset <- obj1
+    segmentAnnotations <- obj2
+    targetAnnotations <- obj3
+    outputFolder <- obj4
+  }
+  
+  normData <- negNorm(dataset = dataset,
+                      segmentAnnotations = segmentAnnotations,
+                      targetAnnotations = targetAnnotations, 
+                      outputFolder = outputFolder)
+  
+  if(class(obj1) == "NanoStringGeoMxSet"){
+    assayDataElement(obj1, "exprs") <- normData
+    return(obj1)
+  }else{
+    return(normData)
+  }
+}
+
+# negative normalization function
+negNorm <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
   # Check for required columns
   cols_check <- c("ProbePool", "CodeClass", "TargetGUID")
   if(!all(cols_check %in% colnames(targetAnnotations))) {

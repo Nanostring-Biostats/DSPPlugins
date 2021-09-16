@@ -83,8 +83,30 @@ library(RColorBrewer) # for brewer.pal
 library(openxlsx)     # for *Workbook
 library(testthat)     # for fail
 
-# main function
-main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
+# main function with GeoMxSet wrapper
+
+main <- function(obj1, obj2, obj3, obj4){
+  if(class(obj1) == "NanoStringGeoMxSet"){
+    dataset <- exprs(obj1)
+    segmentAnnotations <- pData(obj1)
+    targetAnnotations <- fData(obj1)
+    outputFolder <- obj3
+  }else{
+    dataset <- obj1
+    segmentAnnotations <- obj2
+    targetAnnotations <- obj3
+    outputFolder <- obj4
+  }
+  
+  dimReduction(dataset = dataset,
+               segmentAnnotations = segmentAnnotations,
+               targetAnnotations = targetAnnotations, 
+               outputFolder = outputFolder)
+}
+
+
+# dimensional reduction function
+dimReduction <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
   # Step 1: format dataset
   # Make a table to check the passed dataframes from DSP
   targetCountMatrix <- dataset
