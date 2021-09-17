@@ -355,8 +355,9 @@ calc_DR <- function(plot_type = NULL,
                     targetCountMatrix = NULL,
                     segmentAnnotations = NULL) {
   if(plot_type == "UMAP") {
-    set.seed(seed = 98031)
-    dr_data <- umap(t(log2(targetCountMatrix)), random.state = 28502)
+    custom_umap <- umap::umap.defaults
+    custom_umap$random_state <- 98031
+    dr_data <- umap(t(log2(targetCountMatrix)), config = custom_umap)
     segmentAnnotations$Dim1 <- dr_data$layout[, 1]
     segmentAnnotations$Dim2 <- dr_data$layout[, 2]
   } else if(plot_type == "tSNE") {
