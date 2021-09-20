@@ -1,0 +1,6 @@
+# Changelog
+All notable changes to the evaluate_normalization_options.R script for GeoMx(R) DSP will be documented in this file.
+
+## [1.1] - 2021-09-20
+### Added
+- Compatibility with GeoMxSet object from DA

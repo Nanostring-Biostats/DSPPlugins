@@ -1,4 +1,5 @@
 # DSP-NGS RNA Negative Normalization #
+# Version 1.1 #
 
 # Performs background normalization on NGS RNA count data collapsed by target
 # for multi-panel analyses (e.g. with spike-in(s))

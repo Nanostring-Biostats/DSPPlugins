@@ -1,5 +1,10 @@
 # Changelog
 All notable changes to the SpatialDecon_plugin.R script for GeoMx(R) DSP will be documented in this file.
+
+## [1.2] - 2021-09-20
+### Added
+- Compatibility with GeoMxSet object from DA
+
 ## [1.1] - 2021-04-27
 ### Changed 
 - Bugfix: dendrogram and color bars were out of order in the proportions barplot. 

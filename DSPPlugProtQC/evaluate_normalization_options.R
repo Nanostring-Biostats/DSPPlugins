@@ -1,4 +1,5 @@
 # Evaluate Normalization Options #
+# Version 1.1 #
 
 # Produces plots to help select the normalization method 
 # Supports: DSP-nCounter Protein, DSP-nCounter RNA
@@ -58,7 +59,7 @@ eval_norm <- function(dataset, segmentAnnotations, targetAnnotations, outputFold
   #### preliminaries ----------------------------------
 
   # which columns of segmentAnnotations to color plots by:
-       colorby <- intersect(c("ScanName", "SegmentName", plot_factor),
+  colorby <- intersect(c("ScanName", "SegmentName", plot_factor),
                        colnames(segmentAnnotations))
 
   #  define the color scheme:
