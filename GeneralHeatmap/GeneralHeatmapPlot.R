@@ -1,7 +1,7 @@
 # General Heatmap #
 
 # Produces heatmap with clinical annotations
-# Supports: DSP-NGS CTA
+# Supports: GeoMx nCounter (protein or RNA) and GeoMx NGS (CTA/WTA)
 # Note: 
 # Please do not use spaces, special characters, or numbers when adding factors
 # in the DSPDA Annotation file
