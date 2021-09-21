@@ -94,7 +94,19 @@ library(RColorBrewer)
 library(dplyr)
 
 # main function called by DSP-DA
-main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
+main <- function(obj1, obj2, obj3, obj4) {
+  
+  if(class(obj1) == "NanoStringGeoMxSet"){
+    dataset <- exprs(obj1)                  
+    segmentAnnotations <- pData(obj1)       
+    targetAnnotations <- fData(obj1)
+    outputFolder <- obj3
+  }else{
+    dataset <- obj1
+    segmentAnnotations <- obj2
+    targetAnnotations <- obj3
+    outputFolder <- obj4
+  }
   
   targetCountMatrix <- dataset
   # make unique segment identifiers instead of GUIDs
