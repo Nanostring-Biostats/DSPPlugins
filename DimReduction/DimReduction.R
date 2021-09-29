@@ -90,7 +90,26 @@ library(openxlsx)     # for *Workbook
 library(testthat)     # for fail
 
 # main function
-main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
+main <- function(obj1, obj2, obj3, obj4){
+  if(class(obj1) == "NanoStringGeoMxSet"){
+    dataset <- exprs(obj1)                  
+    segmentAnnotations <- pData(obj1)       
+    targetAnnotations <- fData(obj1)
+    outputFolder <- obj3
+  }else{
+    dataset <- obj1
+    segmentAnnotations <- obj2
+    targetAnnotations <- obj3
+    outputFolder <- obj4
+  }
+
+  DimReduct(dataset = dataset,
+            segmentAnnotations = segmentAnnotations,
+            targetAnnotations = targetAnnotations, 
+            outputFolder = outputFolder)
+}
+
+DimReduct <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
   # Step 1: format dataset
   # Make a table to check the passed dataframes from DSP
   targetCountMatrix <- dataset
@@ -166,10 +185,10 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
     if(sum(is.null(plot_colors)) == 0 & sum(is.na(plot_colors)) == 0) {
       # test for valid colors, overridden if first value is a valid palette
       if(sum(!(are_valid_colors(plot_colors) | 
-                (plot_colors[[1]] %in% rownames(brewer.pal.info)))) > 0) {
+               (plot_colors[[1]] %in% rownames(brewer.pal.info)))) > 0) {
         fail(message = paste0('Invalid color choice(s): ',
                               toString(plot_colors[which((are_valid_colors(plot_colors) | 
-                                 (plot_colors[[1]] %in% rownames(brewer.pal.info))) == 0)]),
+                                                            (plot_colors[[1]] %in% rownames(brewer.pal.info))) == 0)]),
                               '. Please use an RBrewer palette, hexidecimal colors, or valid color. Find links in plug-in vignette.'))
       } else if(plot_colors[[1]] %in% rownames(brewer.pal.info)) { # use provided palette
         plot_colors <- c(extend_palette(palette = plot_colors[[1]], n = length(all_lvls)))
@@ -182,7 +201,7 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
       plot_colors <- extend_palette(n = length(all_lvls)) # override if NA or NULL detected
     }
   }
-
+  
   # Size by calculation:
   if(!is.null(size_by)) {
     if (!is.na(size_by)) {
@@ -443,8 +462,8 @@ plot_DR <- function(targetCountMatrix = NULL,
   
   # Add colors if provided
   if(params$colType == "Annot") {
-      plt <- plt +
-        scale_color_manual(values = params$plot_colors)
+    plt <- plt +
+      scale_color_manual(values = params$plot_colors)
     # coloring by Target value
   } else if(params$colType == "Target") {
     clr_name <- paste0(params$color_by, ',\nLog2 Counts')
