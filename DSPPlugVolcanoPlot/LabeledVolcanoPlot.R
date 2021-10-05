@@ -1,4 +1,5 @@
 # Labeled Volcano Plot
+# Version 1.1 #
 
 # Produces a Labeled Volcano Plot
 # Supports: DSP-nCounter Protein, DSP-nCounter RNA, DSP-NGS CTA
@@ -119,8 +120,29 @@ library(scales)
 library(stats)
 library(stringr)
 
-# main function 
-main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder){
+# main function with GeoMxSet wrapper
+
+main <- function(obj1, obj2, obj3, obj4){
+  if(class(obj1) == "NanoStringGeoMxSet"){
+    dataset <- exprs(obj1)
+    segmentAnnotations <- pData(obj1)
+    targetAnnotations <- fData(obj1)
+    outputFolder <- obj3
+  }else{
+    dataset <- obj1
+    segmentAnnotations <- obj2
+    targetAnnotations <- obj3
+    outputFolder <- obj4
+  }
+  
+  volcanoPlot(dataset = dataset,
+              segmentAnnotations = segmentAnnotations,
+              targetAnnotations = targetAnnotations, 
+              outputFolder = outputFolder)
+}
+
+# volcano plot function 
+volcanoPlot <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder){
   
   if(!file.exists(de_results_filename)){
     fail(message="Given volcano plot results file does not exist. 

@@ -17,9 +17,9 @@ plot_factor <- c("Enter factor Here" ,"etc")
 ##########################################################
 # MIT License
 # Copyright 2020 Nanostring Technologies, Inc.
-# Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the “Software”), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+# Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 # The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
-# THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # Contact us: 
 #   NanoString Technologies, Inc.
 #   530 Fairview Avenue N
@@ -33,20 +33,20 @@ plot_factor <- c("Enter factor Here" ,"etc")
 
 # main function called by DSP-DA:
 main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
-
+  
   #### preliminaries ----------------------------------
-
+  
   # which columns of segmentAnnotations to color plots by:
-       colorby <- intersect(c("ScanName", "SegmentName", plot_factor),
+  colorby <- intersect(c("ScanName", "SegmentName", plot_factor),
                        colnames(segmentAnnotations))
-
+  
   #  define the color scheme:
   cols <- assign_colors(annot = segmentAnnotations[, colorby, drop = FALSE])
-
+  
   # identify control probes:
   igg.names <- targetAnnotations$TargetGUID[targetAnnotations$CodeClass == "Negative"]
   hk.names <- targetAnnotations$TargetGUID[targetAnnotations$CodeClass == "Control"]
-
+  
   # compute normalization factors:
   normfactors <- compute_normalization_factors(
     segmentAnnotations = segmentAnnotations,
@@ -55,8 +55,8 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
     igg.names = igg.names,
     hk.names = hk.names
   )
-
-
+  
+  
   #### plot IgG concordance: ------------------------
   if (length(igg.names) > 1) {
     pdf(file = file.path(outputFolder, "igg_concordance.pdf", fsep = .Platform$file.sep), width = 12)
@@ -75,8 +75,8 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
     }
     dev.off()
   }
-
-
+  
+  
   #### plot HK concordance: --------------------------
   if (length(hk.names) > 1) {
     pdf(file = file.path(outputFolder, "housekeeper_concordance.pdf", fsep = .Platform$file.sep), width = 12)
@@ -95,8 +95,8 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
     }
     dev.off()
   }
-
-
+  
+  
   ##### plot concordance among norm factors: ------------------------
   if (ncol(normfactors) > 1) {
     pdf(file = file.path(outputFolder, "normalization_factor_concordance.pdf", fsep = .Platform$file.sep), width = 12)
@@ -108,7 +108,7 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
       colnames(tempmat)[colnames(tempmat) == "Neg geomean"] <- "Neg geomean\n(counts)"
       colnames(tempmat)[colnames(tempmat) == "Nuclei"] <- "Nuclei\n(counts)"
       colnames(tempmat)[colnames(tempmat) == "Area"] <- "Area (microns squared)"
-
+      
       plot_concordance(
         mat = tempmat,
         col = cols[[varname]][as.character(segmentAnnotations[, varname])],
@@ -119,9 +119,9 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
     }
     dev.off()
   }
-
+  
   #### QC proteins' signal level ---------------------------
-
+  
   pdf(
     file = file.path(outputFolder, "signal_qc.pdf", fsep = .Platform$file.sep),
     width = pmin(pmax(10, nrow(dataset) * 0.2), 24)
@@ -143,35 +143,35 @@ main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
 #' @return Draws a boxplot for evaluating whether proteins ever get above background
 #' @export
 qc_protein_signal <- function(raw, neg.names, targetAnnotations = NULL, neg.thresh = 20, qccols = c("#00008B80", "#FF000080")) {
-
+  
   # estimate background:
   negfactor <- pmax(colMeans(raw[neg.names, , drop = FALSE]), 1)
-
+  
   # calc snr
   snr <- sweep(raw, 2, negfactor, "/")
-
+  
   igginds <- which(is.element(rownames(snr), neg.names))
   o <- c(igginds, setdiff(order(apply(snr, 1, median)), igginds))
-
+  
   protnames <- rownames(snr)
   if (length(targetAnnotations) > 0) {
     protnames <- targetAnnotations[match(rownames(snr), targetAnnotations$TargetGUID), "TargetName"]
   }
   par(mar = c(11, 4, 2, 1))
   boxplot(t(log2(snr[o, ])),
-    las = 2,
-    outline = FALSE,
-    ylim = range(log2(snr)),
-    names = protnames[o],
-    ylab = "Log2 signal-to-background ratio",
-    cex.axis = .85 - 0.3 * (nrow(snr) > 60)
+          las = 2,
+          outline = FALSE,
+          ylim = range(log2(snr)),
+          names = protnames[o],
+          ylab = "Log2 signal-to-background ratio",
+          cex.axis = .85 - 0.3 * (nrow(snr) > 60)
   )
   axis(2, at = 1, labels = 1, las = 2, cex = 0.5)
   points(jitter(rep(1:nrow(snr), ncol(snr))),
-    log2(snr[o, ]),
-    col = "#00008B80",
-    # col = qccols[1 + (negfactor < neg.thresh)],
-    pch = 16, cex = 0.5
+         log2(snr[o, ]),
+         col = "#00008B80",
+         # col = qccols[1 + (negfactor < neg.thresh)],
+         pch = 16, cex = 0.5
   )
   abline(h = 0)
   abline(v = length(igginds) + 0.5, lty = 2)
@@ -187,14 +187,14 @@ qc_protein_signal <- function(raw, neg.names, targetAnnotations = NULL, neg.thre
 #' @param annot The segment annotation data frame
 #' @return A vector of column names
 choose_annotation_columns <- function(annot) {
-
+  
   # color by all columns with > 1 and < 20 unique values:
   nvalues <- c()
   for (varname in colnames(segmentAnnotations)) {
     nvalues[varname] <- length(unique(segmentAnnotations[, varname]))
   }
   colorby <- names(nvalues)[(nvalues > 1) & (nvalues <= 20)]
-
+  
   return(colorby)
 }
 
@@ -229,7 +229,7 @@ assign_colors <- function(annot) {
     return(fcols)
   }
   colvec <- fadecols(colvec, 0.7)
-
+  
   # assign colors:
   cols <- list()
   colorby <- colnames(annot)
@@ -240,7 +240,7 @@ assign_colors <- function(annot) {
     # remove the used colors from further consideration:
     colvec <- setdiff(colvec, cols[[varname]]) # (disabling this so the more bold colors are re-used)
   }
-
+  
   return(cols)
 }
 
@@ -255,7 +255,7 @@ assign_colors <- function(annot) {
 #' @param hk.names Character vector giving HK probe names
 #' @return  A matrix of normalization factors, with segments in rows and factors in columns
 compute_normalization_factors <- function(segmentAnnotations, targetAnnotations, dataset, igg.names, hk.names) {
-
+  
   # igg and hk factors:
   if (length(igg.names) > 1) {
     igg.factor <- exp(colMeans(log(pmax(dataset[igg.names, , drop = FALSE], 1))))
@@ -263,7 +263,7 @@ compute_normalization_factors <- function(segmentAnnotations, targetAnnotations,
   if (length(hk.names) > 1) {
     hk.factor <- exp(colMeans(log(pmax(dataset[hk.names, , drop = FALSE], 1))))
   }
-
+  
   # area and nuclei factors:
   if (any(colnames(segmentAnnotations) == "AOIArea")) {
     area.factor <- segmentAnnotations$AOIArea
@@ -271,18 +271,18 @@ compute_normalization_factors <- function(segmentAnnotations, targetAnnotations,
   if (any(colnames(segmentAnnotations) == "AOINucleiCount")) {
     nuclei.factor <- segmentAnnotations$AOINucleiCount
   }
-
+  
   # matrix of all available factors:
   factornames <- c("igg.factor", "hk.factor", "area.factor", "nuclei.factor")
   names(factornames) <- c("Neg geomean", "HK geomean", "Area", "Nuclei")
   factornames <- factornames[is.element(factornames, ls())]
-
+  
   factors <- c()
   for (fname in factornames) {
     factors <- cbind(factors, get(fname))
   }
   colnames(factors) <- names(factornames)
-
+  
   return(factors)
 }
 
@@ -307,7 +307,7 @@ compute_normalization_factors <- function(segmentAnnotations, targetAnnotations,
 plot_concordance <- function(mat, col = rgb(0, 0, 0, 0.5),
                              collegend = NULL, legend.main = NULL,
                              main = "", pch = 16, cex = 1.5, ...) {
-
+  
   # subsidiary function for printing the SD of a ratio, for use by pairs():
   print.sd.log.ratio <- function(x, y, digits = 2, prefix = "", cex.cor = 1, ...) {
     usr <- par("usr")
@@ -318,27 +318,27 @@ plot_concordance <- function(mat, col = rgb(0, 0, 0, 0.5),
     txt <- paste0(prefix, txt)
     legend("center", legend = txt, box.col = "white", cex = 1.5)
   }
-
+  
   # draw pairs plot:
   par(mar = c(4, 4, 2, 1))
-
+  
   pairs(mat,
-    log = "xy",
-    upper.panel = points,
-    lower.panel = print.sd.log.ratio,
-    oma = c(3, 3, 3, 35),
-    col = col,
-    pch = pch,
-    cex = cex,
-    labels = colnames(mat),
-    main = main
+        log = "xy",
+        upper.panel = points,
+        lower.panel = print.sd.log.ratio,
+        oma = c(3, 3, 3, 35),
+        col = col,
+        pch = pch,
+        cex = cex,
+        labels = colnames(mat),
+        main = main
   )
   # draw a legend:
   if (length(collegend) > 0) {
     legend("right",
-      col = c(NA, collegend, NA, NA),
-      legend = c(legend.main, names(collegend), "", "Numbers show SD(log2(ratios))"),
-      pch = 16
+           col = c(NA, collegend, NA, NA),
+           legend = c(legend.main, names(collegend), "", "Numbers show SD(log2(ratios))"),
+           pch = 16
     )
   }
 }
