@@ -1,4 +1,5 @@
 # General Heatmap #
+# Version 1.0 #
 
 # Produces heatmap with clinical annotations
 # Supports: GeoMx nCounter (protein or RNA) and GeoMx NGS (CTA/WTA)
@@ -113,9 +114,11 @@ main <- function(obj1, obj2, obj3, obj4) {
   segmentAnnotationsMod <- segmentAnnotations %>%
     mutate(segmentDisplayName = paste(ScanName, ROIName, SegmentName, sep=" | "))
   # update count matrix column names with new segment unique ID instead of GUID. 
-  names(targetCountMatrix) <- segmentAnnotationsMod[match(names(targetCountMatrix), segmentAnnotationsMod[ , "segmentID"]), "segmentDisplayName"]  
+  colnames(targetCountMatrix) <- segmentAnnotationsMod[match(colnames(targetCountMatrix), segmentAnnotationsMod[ , "segmentID"]), "segmentDisplayName"]  
   # update count matrix rownames with targetNames
   rownames(targetCountMatrix) <- targetAnnotations[match(rownames(targetCountMatrix), targetAnnotations[ , "TargetGUID"]), "TargetName"]
+  # update annotation matrix rownames with new segment unique ID
+  rownames(segmentAnnotationsMod) = segmentAnnotationsMod[,"segmentDisplayName"]
   
   # setup output file
   if (file_type == "pdf") {
@@ -218,9 +221,7 @@ draw_general_heatmap <- function(data = targetCountMatrix,
   # subset annotations data
   if (!is.null(annotations_to_show)) {
     annotations <- subset(annotations, select = c("segmentDisplayName", annotations_to_show))
-    annot_rownames <- annotations[,1L]
     annotations <- annotations[,-1L, drop = FALSE]
-    rownames(annotations) <- annot_rownames
   } else {
     annotations <- NULL
   }
@@ -247,11 +248,12 @@ draw_general_heatmap <- function(data = targetCountMatrix,
   }
   
   # log2 transform data
+  data_colnames = colnames(data)
   data <- data.frame(log2(data))
-  colnames(data) <- rownames(annotations)
   
   # remove all zero rows
   data = data[rowSums(data[]) != 0,]
+  colnames(data) <- data_colnames
   
   # set heatmap color palette
   if (!is.null(heatmap_colors)) {
