@@ -4,7 +4,7 @@
 # Performs background normalization on NGS RNA count data collapsed by target
 # for multi-panel analyses (e.g. with spike-in(s))
 # OUTPUT: a dataset within the DSPDA that contains background normalized counts
-# Supports: DSP-NGS CTA
+# Supports: DSP-NGS CTA, DSP-NGS WTA (mouse & human)
 # The script should be run on the Biological Probe QC dataset
 
 ##########################################################
