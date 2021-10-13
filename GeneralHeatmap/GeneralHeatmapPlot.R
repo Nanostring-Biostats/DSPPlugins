@@ -233,7 +233,7 @@ draw_general_heatmap <- function(data = targetCountMatrix,
     } else {
       annotations <- annotations[order(annotations[,sort_by]), ,drop = FALSE]
     }
-    
+    data <- data[,rownames(annotations)]
     gaps_col <- match(unique(annotations[,sort_by]), annotations[,sort_by])
     gaps_col <- gaps_col[2L:length(gaps_col)] - 1L
   } else{
