@@ -2,7 +2,7 @@
 # Version 1.1 #
 
 # Produces a Labeled Volcano Plot
-# Supports: DSP-nCounter Protein, DSP-nCounter RNA, DSP-NGS CTA
+# Supports: DSP-nCounter Protein, DSP-nCounter RNA, DSP-NGS CTA, DSP-NGS WTA (mouse & human)
 # Note: this script can be run only after a DSPDA 'Statistical Tests' is performed 
 # Please do not use spaces, special characters, or numbers when naming factors
 # that are used in a statistical test

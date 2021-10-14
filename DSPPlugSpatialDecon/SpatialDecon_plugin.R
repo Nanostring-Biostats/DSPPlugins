@@ -2,7 +2,7 @@
 # Version 1.2 #
 
 # Produces cell abundance and proportion plots/scores
-# Supports: DSP-NGS CTA
+# Supports: DSP-NGS CTA, DSP-NGS WTA (mouse & human)
 # Note: this script should be run only on a dataset AFTER normalization
 # Please do not use spaces, special characters, or numbers when adding factors
 # in the DSPDA Annotation file
