@@ -1,8 +1,8 @@
 # Spatial Deconvolution #
-# Version 1.1 #
+# Version 1.2 #
 
 # Produces cell abundance and proportion plots/scores
-# Supports: DSP-NGS CTA
+# Supports: DSP-NGS CTA, DSP-NGS WTA (mouse & human)
 # Note: this script should be run only on a dataset AFTER normalization
 # Please do not use spaces, special characters, or numbers when adding factors
 # in the DSPDA Annotation file
@@ -92,7 +92,30 @@ library(scales)
 library(openxlsx)
 library(dplyr)
 
-main <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
+# main function with GeoMxSet wrapper
+
+main <- function(obj1, obj2, obj3, obj4){
+  if(class(obj1) == "NanoStringGeoMxSet"){
+    dataset <- exprs(obj1)
+    segmentAnnotations <- pData(obj1)
+    targetAnnotations <- fData(obj1)
+    outputFolder <- obj3
+  }else{
+    dataset <- obj1
+    segmentAnnotations <- obj2
+    targetAnnotations <- obj3
+    outputFolder <- obj4
+  }
+  
+  decon(dataset = dataset,
+              segmentAnnotations = segmentAnnotations,
+              targetAnnotations = targetAnnotations, 
+              outputFolder = outputFolder)
+}
+
+# spatial decon function
+
+decon <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) {
 
   #### preliminaries ----------------------
   dataset <- as.matrix(dataset)
