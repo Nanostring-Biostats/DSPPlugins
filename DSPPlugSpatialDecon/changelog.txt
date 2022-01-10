@@ -1,6 +1,10 @@
 # Changelog
 All notable changes to the SpatialDecon_plugin.R script for GeoMx(R) DSP will be documented in this file.
 
+## [1.2] - 2022-01-10
+### Changed
+- profile matrix .csv files can be found on the archive branch of the GitHub repo or can be extracted from the RData files in the master branch 
+
 ## [1.2] - 2021-09-20
 ### Added
 - Compatibility with GeoMxSet object from DA
