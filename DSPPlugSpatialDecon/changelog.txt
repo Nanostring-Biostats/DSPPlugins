@@ -1,6 +1,12 @@
 # Changelog
 All notable changes to the SpatialDecon_plugin.R script for GeoMx(R) DSP will be documented in this file.
 
+## [1.3] - 2022-07-12
+### Added
+- Plugin now calls Bioconductor SpatialDecon package rather than using copied developmental code
+- Profile matrices from GitHub in the RData format can be used in plugin
+- Bug fix on heatmap coloring
+
 ## [1.2] - 2022-01-10
 ### Changed
 - profile matrix .csv files can be found on the archive branch of the GitHub repo or can be extracted from the RData files in the master branch 
