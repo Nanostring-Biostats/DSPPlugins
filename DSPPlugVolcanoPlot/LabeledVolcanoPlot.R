@@ -1,5 +1,5 @@
 # Labeled Volcano Plot
-# Version 1.1 #
+# Version 1.2 #
 
 # Produces a Labeled Volcano Plot
 # Supports: DSP-nCounter Protein, DSP-nCounter RNA, DSP-NGS CTA, DSP-NGS WTA (mouse & human)
@@ -169,10 +169,16 @@ volcanoPlot <- function(dataset, segmentAnnotations, targetAnnotations, outputFo
       fail(message="Too many rows were removed from VOLCANO PLOT.xlsx before running script. 
            The row with Target Name in the first column must be kept.")
     }
-    
-    de_results$Log2 <- as.numeric(de_results$Log2)
-    de_results$Pvalue <- as.numeric(de_results$Pvalue)
   }
+  
+  # Geographical number formatting check
+  de_results$Log2 <- as.numeric(gsub(x = de_results$Log2, 
+                                     pattern = ",", replacement = "."))
+  de_results$Pvalue <- as.numeric(gsub(x = de_results$Pvalue, 
+                                       pattern = ",", replacement = "."))
+  de_results$X.log10.pvalue <- as.numeric(gsub(x = de_results$X.log10.pvalue, 
+                                       pattern = ",", replacement = "."))
+  
   
   #ensure consistent capitalization with Target.Name column name
   colnames(de_results)[which(tolower(colnames(de_results)) == "target.name")] <- "Target.Name"
