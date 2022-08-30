@@ -122,14 +122,18 @@ decon <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) 
   #### preliminaries ----------------------
   dataset <- as.matrix(dataset)
   
-  if(endsWith(cell_profile_filename, ".csv")){
-    # access cell profile matrix file:
-    X <- as.matrix(read.csv(cell_profile_filename, header = TRUE, row.names = 1))
-  }else if(endsWith(cell_profile_filename, ".RData")){
-    load(cell_profile_filename)
-    X <- as.matrix(profile_matrix)
+  if(file.exists(cell_profile_filename)){
+    if(endsWith(cell_profile_filename, ".csv")){
+      # access cell profile matrix file:
+      X <- as.matrix(read.csv(cell_profile_filename, header = TRUE, row.names = 1))
+    }else if(endsWith(cell_profile_filename, ".RData")){
+      load(cell_profile_filename)
+      X <- as.matrix(profile_matrix)
+    }else{
+      stop("cell_profile_filename must be a .csv or .RData file")
+    }
   }else{
-    stop("cell_profile_filename must be a .csv or .RData file")
+     stop("Invalid cell_profile_filename file name")  
   }
   
   if(useDefinedMerges == FALSE){
