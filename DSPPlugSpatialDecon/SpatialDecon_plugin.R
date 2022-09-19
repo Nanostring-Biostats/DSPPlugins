@@ -136,7 +136,7 @@ decon <- function(dataset, segmentAnnotations, targetAnnotations, outputFolder) 
      stop("Invalid cell_profile_filename file name")  
   }
   
-  if(useDefinedMerges == FALSE){
+  if(useDefinedMerges == FALSE | !exists("cellGroups")){
     # ARGUMENT (hidden): define cell types to be added together in the final result:
     # example syntax:
     # merges = list()
