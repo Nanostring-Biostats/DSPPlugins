@@ -9,7 +9,6 @@
 
 #        User Options        #
 ##############################
-
 de_results_filename <- "VOLCANO PLOT.txt"
 # volcano plot results (tab delimited) filename
 
@@ -121,7 +120,6 @@ library(stats)
 library(stringr)
 
 # main function with GeoMxSet wrapper
-
 main <- function(obj1, obj2, obj3, obj4){
   if(class(obj1) == "NanoStringGeoMxSet"){
     dataset <- exprs(obj1)
@@ -263,6 +261,13 @@ plotVolcano <- function(de){
     gene_coloring <- as.data.frame(do.call(rbind, de_subset_list))
     names(gene_coloring)[names(gene_coloring) == "x"] <- "Target_coloring"
     gene_coloring$Target_coloring <- str_wrap(gene_coloring$Target_coloring, width=45)
+    
+    if(length(target_groups) > length(color_options)){
+      stop("Not enough colors provided in color_options")
+    }
+    
+    color_options <- color_options[1:length(target_groups)]
+    names(color_options) <- target_groups
     
     color_label <- "Target Group\nMembership"
   }else{
