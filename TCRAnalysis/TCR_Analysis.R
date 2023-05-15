@@ -283,17 +283,17 @@ tcr <- function(dataset, outputFolder) {
   #### calculate the following summary statistics from TCR probes and append to GeoMxSetObject as new segment annotations
   
   # 1. Diversity statistics - Gini Coefficient
-  pData(dataset)$TCR_Gini <- apply(exprs(dataset)[tcr_probes, ], 2, gini.wtd)
-  pData(dataset)$TCR_Gini_qnorm <- apply(assayDataElement(dataset, elt = "q_norm")[tcr_probes, ], 2, gini.wtd)
+  pData(dataset)$TCR_Gini <- apply(exprs(dataset)[tcr_probes, ], 2, calculate_gini_coefficient)
+  pData(dataset)$TCR_Gini_qnorm <- apply(assayDataElement(dataset, elt = "q_norm")[tcr_probes, ], 2, calculate_gini_coefficient)
   
   if (TCR_probes_bg_subtraction) {
-    pData(dataset)$TCR_Gini_bgexprs <- apply(assayDataElement(dataset, elt = "bg_exprs")[tcr_probes, ], 2, gini.wtd)
+    pData(dataset)$TCR_Gini_bgexprs <- apply(assayDataElement(dataset, elt = "bg_exprs")[tcr_probes, ], 2, calculate_gini_coefficient)
   }
   
   
   # 2. Diversity statistics - Shannon Entropy
   
-  H <- diversity(t(exprs(dataset)[tcr_probes, ]))
+  H <- calculate_shannon_diversity(t(exprs(dataset)[tcr_probes, ]))
   pData(dataset)$ShannonH <- H
   
   
