@@ -184,9 +184,9 @@ tcr <- function(dataset, outputFolder) {
   
   if (filter_targets) {
     
-    expression_threshold <- ncol(exprs(dataset))*percent_thresh
+    expression_threshold <- dim(dataset)[2]*percent_thresh
     low_targets <- which(rowSums(exprs(dataset) > 1) < expression_threshold)
-    targets_to_remove <- low_targets[!(low_targets %in% which(rownames(exprs(dataset)) %in% tcr_probes))]
+    targets_to_remove <- low_targets[!(low_targets %in% which(dimnames(dataset)[[1]] %in% tcr_probes))]
     
     if (length(targets_to_remove) > 0) {
       dataset = dataset[-targets_to_remove, ]
@@ -223,7 +223,7 @@ tcr <- function(dataset, outputFolder) {
   pData(dataset)[, "NegGeoSD"] <- negativeGeoSD
   
   # initialize array to store results
-  LOQ_results <- array(NA, dim = c(nrow(exprs(dataset)), ncol(exprs(dataset)), length(LOQ_thresholds)), dimnames = list(rownames(exprs(dataset)), colnames(exprs(dataset)), paste0("LOQ", LOQ_thresholds)))
+  LOQ_results <- array(NA, dim = c(dim(dataset), length(LOQ_thresholds)), dimnames = list(dimnames(dataset)[[1]], dimnames(dataset)[[2]], paste0("LOQ", LOQ_thresholds)))
   
   # determine which TCR targets are above LOQ thresh and save to results array
   for (i in 1:length(LOQ_thresholds)) {
@@ -232,16 +232,13 @@ tcr <- function(dataset, outputFolder) {
     LOQ <- data.frame(row.names = colnames(dataset))
   
     vars <- c("NegGeoMean", "NegGeoSD")
-    if(all(vars[1:2] %in% colnames(pData(dataset)))) {
-      LOQ <- pData(dataset)[, vars[1]] * pData(dataset)[, vars[2]] ^ n
-        
-      above_LOQ <- t(esApply(dataset, MARGIN = 1, 
-                          FUN = function(x) {
-                              x > LOQ
-                          }))
-      LOQ_results[, , i] <- as.matrix(above_LOQ)
-    }
+    LOQ <- pData(dataset)[, vars[1]] * pData(dataset)[, vars[2]] ^ n
     
+    above_LOQ <- t(esApply(dataset, MARGIN = 1, 
+                           FUN = function(x) {
+                             x > LOQ
+                           }))
+    LOQ_results[, , i] <- as.matrix(above_LOQ)
    
     pData(dataset)[ , paste0("LOQ", n)] <- LOQ
     pData(dataset)[ , paste0("Targets_Above_LOQ", n)] <- apply(above_LOQ, 2, sum)
@@ -266,9 +263,8 @@ tcr <- function(dataset, outputFolder) {
       } else {
         
           vars <- c("NegGeoMean", "NegGeoSD")
-          if(all(vars[1:2] %in% colnames(pData(dataset)))) {
-            bg <- pData(dataset)[, vars[1]] * pData(dataset)[, vars[2]] ^ bg_LOQ_thresh
-        }
+          bg <- pData(dataset)[, vars[1]] * pData(dataset)[, vars[2]] ^ bg_LOQ_thresh
+          
       }
       
     } else {
@@ -324,6 +320,20 @@ tcr <- function(dataset, outputFolder) {
             sheet = "TCR_Gini",
             pData(dataset)["TCR_Gini"],
             colNames = TRUE, rowNames = TRUE)
+  
+  addWorksheet(wb, "TCR_Gini_qnorm")
+  writeData(wb,
+            sheet = "TCR_Gini_qnorm",
+            pData(dataset)["TCR_Gini_qnorm"],
+            colNames = TRUE, rowNames = TRUE)
+  
+  if (TCR_probes_bg_subtraction) {
+    addWorksheet(wb, "TCR_Gini_bgexprs")
+    writeData(wb,
+              sheet = "TCR_Gini_bgexprs",
+              pData(dataset)["TCR_Gini_bgexprs"],
+              colNames = TRUE, rowNames = TRUE)
+  }
   
   # write Shannon entropy results
   addWorksheet(wb, "ShannonH")
