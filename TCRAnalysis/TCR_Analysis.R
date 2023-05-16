@@ -95,7 +95,6 @@ main <- function(obj1, obj2, obj3, obj4){
       annotation = character(),
       protocolData = protocolData,
       dimLabels = c("TargetGUID", "segmentID"),
-      signatures = SignatureSet(),
       design = NULL,
       featureType = "Probe",
       analyte = "RNA",
