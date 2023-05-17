@@ -118,8 +118,8 @@ main <- function(obj1, obj2, obj3, obj4){
     return(obj1)
   } else {
     exprsData=as.data.frame(exprs(tcrData))
-    rownames(exprsData) = fData(tcrData)[, "TargetGUID"]
-    colnames(exprsData) = pData(tcrData)[, "segmentID"]
+    rownames(exprsData) <- fData(tcrData)[, "TargetGUID"]
+    colnames(exprsData) <- pData(tcrData)[, "segmentID"]
     return(exprsData)
   }
 }
