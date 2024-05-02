@@ -1,5 +1,5 @@
 # TCR Analysis#
-# Version 1.0 #
+# Version 1.1 #
 
 # Produces Gini Coefficients and Shannon entropy scores
 # Supports: DSP-NGS CTA, DSP-NGS WTA (mouse & human) with TCR spike-in
