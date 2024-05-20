@@ -1,5 +1,5 @@
 # TCR Analysis#
-# Version 1.0 #
+# Version 1.1 #
 
 # Produces Gini Coefficients and Shannon entropy scores
 # Supports: DSP-NGS CTA, DSP-NGS WTA (mouse & human) with TCR spike-in
@@ -79,7 +79,7 @@ main <- function(obj1, obj2, obj3, obj4){
     featureData <- Biobase::annotatedDataFrameFrom(as.matrix(obj3), byrow = TRUE)
     featureData@data <- obj3
     
-    protocol_mat <- matrix(NA, nrow = 94, ncol = 14, dimnames = list(c(rownames(obj2)), c("FileVersion", "SoftwareVersion",
+    protocol_mat <- matrix(NA, nrow=length(rownames(obj2)), ncol = 14, dimnames = list(c(rownames(obj2)), c("FileVersion", "SoftwareVersion",
                                                                                         "SampleID", "Plate_ID", "SeqSetId", "tamperedIni",
                                                                                         "Raw", "Trimmed", "Stitched", "Aligned", "FumiQ30",
                                                                                         "rtsQ30", "Date", "Well")))
