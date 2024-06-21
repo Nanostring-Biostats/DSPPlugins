@@ -1,7 +1,7 @@
 # Combined labeled Volcano Plot
 # Version 1.0 #
 
-# Produces a Labeled Volcano Plot
+# Produces a Labeled Combined Volcano Plot from 2 DSPDA volcano plot inputs
 # Supports: DSP-nCounter Protein, DSP-nCounter RNA, DSP-NGS CTA, DSP-NGS WTA (mouse & human)
 # Note: this script can be run only after a DSPDA 'Statistical Tests' is performed 
 # Please do not use spaces, special characters, or numbers when naming factors
@@ -13,10 +13,11 @@
 
 output_format <- "png"
 # options: png, jpg, tiff, svg, pdf, & bmp
-
-#outputFolder <- "~/ec2-user"  # Define your output folder
+# outputFolder <- "~/ec2-user"  # Define your output folder for testing purposes
 
 ######################## LABELING ########################  
+plot_title <- "Enter Title Here"
+# Volcano Plot Title
 
 negative_label <- "Left Label"
 # Negative (left) label for Fold Change from volcano plot
@@ -30,6 +31,12 @@ n_genes <- 10
 gene_list <-NULL #c("PLOD3", "TMEM132E", "PITRM1", "DPP10", "OPA1", "CD4", "Wilms Tumor Protein", "IL-6R", "Nanog", "c-Maf", "Androgen Receptor")
 # genes to label no matter where they are in the volcano plot. This overrides n_genes
 
+# Optional Labels
+
+show_legend <- TRUE
+# Show color legend on figure
+
+
 ####################### THRESHOLDS #######################
 pval_thresh <- 0.05
 # P-value threshold, must set fdr_thresh to NULL to use
@@ -37,6 +44,12 @@ pval_thresh <- 0.05
 fdr_thresh <- 0.01
 # FDR threshold, default threshold over pval_thresh
 
+# Optional thresholds
+fc_thresh <- 0.5
+# Fold Change threshold, if set coloring options will change
+
+label_fc <- FALSE
+# Should genes below fc_thresh be labeled
 ######################### FONTS ##########################
 font_size <- 8
 # Font Size
@@ -66,19 +79,6 @@ color_options <-  c("#3A6CA1", "#FFD861", "#CF4244",
                     "#318026", "#A66293", "#F28E2B", 
                     "#8F6954")
 
-# Optional Labels
-plot_title <- "Enter Title Here"
-# Volcano Plot Title
-
-show_legend <- TRUE
-# Show color legend on figure
-
-# Optional thresholds
-fc_thresh <- 0.5
-# Fold Change threshold, if set coloring options will change
-
-label_fc <- FALSE
-# Should genes below fc_thresh be labeled
 
 # Optional Color parameters
 fc_color <- "grey30"
@@ -93,7 +93,7 @@ target_groups <- "Protein_SNR5_filtered"
 #   If variable is set, genes are colored by given target 
 #     group; else genes colored if they are above thresholds
 
-# New option for dataset coloring
+# Option for dataset coloring for Combined Plots
 color_by_dataset <- TRUE
 # If TRUE, color by dataset_name
 
@@ -206,8 +206,8 @@ volcanoPlot <- function(dataset, segmentAnnotations, targetAnnotations, outputFo
         width=plot_width, height=plot_height)
     print(volcanoPlot_results$plot)
     dev.off()
-    }else if(output_format == "html"){
-      htmlwidgets::saveWidget(volcanoPlot_results$plot, file=paste0(outputFolder, "/volcano_plot_", plot_title, ".html"))
+    #}else if(output_format == "html"){
+    #  htmlwidgets::saveWidget(volcanoPlot_results$plot, file=paste0(outputFolder, "/volcano_plot_", plot_title, ".html"))
     }else{
     ggsave(filename=paste0("volcano_plot_", plot_title, ".", output_format),
            plot=volcanoPlot_results$plot,
@@ -351,10 +351,10 @@ plotVolcano <- function(de){
       names(color_options)[length(color_options)] <- paste("FC <", fc_thresh)
     }
   }
-  
+  if(color_by_dataset == FALSE){ #for other points without colors specified  
   color_options <- c(color_options, default_color)
   names(color_options)[length(color_options)] <- "Not Specified"
-  
+  }
   # add coloring to ggplot
   ggFigure <- ggFigure + geom_point(data=gene_coloring, aes(x=Log2, y=Pvalue, color=Target_coloring))+
     labs(color=color_label)+
