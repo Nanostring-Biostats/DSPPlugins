@@ -13,7 +13,6 @@
 
 output_format <- "png"
 # options: png, jpg, tiff, svg, pdf, & bmp
-# outputFolder <- "~/ec2-user"  # Define your output folder for testing purposes
 
 ######################## LABELING ########################  
 plot_title <- "Enter Title Here"
@@ -28,8 +27,11 @@ positive_label <- "Right Label"
 n_genes <- 10
 # Number of top genes to label, gene_list overrides this variable if set
 
+n_genes_per_dataset <- TRUE
+# Set to TRUE to label top n_genes for each dataset, gene_list overrides this variable if set
+
 gene_list <-NULL #c("PLOD3", "TMEM132E", "PITRM1", "DPP10", "OPA1", "CD4", "Wilms Tumor Protein", "IL-6R", "Nanog", "c-Maf", "Androgen Receptor")
-# genes to label no matter where they are in the volcano plot. This overrides n_genes
+# targets to label (genes or proteins) no matter where they are in the volcano plot. This overrides n_genes
 
 # Optional Labels
 
@@ -137,7 +139,6 @@ main <- function(obj1, obj2, obj3, obj4){
     segmentAnnotations <- obj2
     targetAnnotations <- obj3
     outputFolder <- obj4
-    #outputFolder <- "~/ec2-user"
   }
   volcanoPlot(dataset = dataset,
               segmentAnnotations = segmentAnnotations,
@@ -192,9 +193,6 @@ volcanoPlot <- function(dataset, segmentAnnotations, targetAnnotations, outputFo
   #ensure consistent capitalization with Target.Name column name
   colnames(combined_results)[which(tolower(colnames(combined_results)) == "target.name")] <- "Target.Name"
   
-  print(str(combined_results))
-  
-  
   # test for valid input variables
   testVariableFormats(de=combined_results)
   
@@ -206,8 +204,8 @@ volcanoPlot <- function(dataset, segmentAnnotations, targetAnnotations, outputFo
         width=plot_width, height=plot_height)
     print(volcanoPlot_results$plot)
     dev.off()
-    #}else if(output_format == "html"){
-    #  htmlwidgets::saveWidget(volcanoPlot_results$plot, file=paste0(outputFolder, "/volcano_plot_", plot_title, ".html"))
+#    }else if(output_format == "html"){
+#      htmlwidgets::saveWidget(volcanoPlot_results$plot, file=paste0(outputFolder, "/volcano_plot_", plot_title, ".html"))
     }else{
     ggsave(filename=paste0("volcano_plot_", plot_title, ".", output_format),
            plot=volcanoPlot_results$plot,
@@ -246,7 +244,7 @@ plotVolcano <- function(de){
   
   # create basic volcano plot with correct formatting
   ggFigure <- ggplot(de, aes(x=Log2, y=Pvalue, 
-                             text = paste("Gene:", Target.Name)))+
+                             text = paste("Target:", Target.Name)))+
     geom_point(color=default_color)+
     labs(y="Pvalue",
          x=paste(negative_label, "<-", "log2(FC)", "->", positive_label, sep=" "),
@@ -402,7 +400,11 @@ plotVolcano <- function(de){
     }
     
     # only keep top # of genes by pvalue
-    gene_labels <- gene_labels[head(order(gene_labels$Pvalue, decreasing=FALSE), n=n_genes),]
+    if (n_genes_per_dataset == TRUE){
+      gene_labels <- do.call(rbind, lapply(split(gene_labels, gene_labels$dataset_name), function(x) head(x[order(x$Pvalue), ], n_genes)))
+        } else{
+      gene_labels <- gene_labels[head(order(gene_labels$Pvalue, decreasing=FALSE), n=n_genes),]  
+    }
   }  
   interactive=ifelse(output_format=="html", TRUE, FALSE)
   if (interactive==FALSE){
