@@ -416,7 +416,7 @@ plotVolcano <- function(de){
   
   colnames(gene_labels) <- c("Target tag", "Target group memership/s", "Target Name", "Log2", 
                              "Pvalue", "Adjusted pvalue", "-log10 pvalue", "-log10 adjusted pvalue",
-                             "FDR")
+                             "Source", "Dataset Name", "FDR")
   
   volcanoPlot <- list(ggFigure, gene_labels)
   names(volcanoPlot) <- c("plot", "gene_labels")
