@@ -211,12 +211,12 @@ volcanoPlot <- function(dataset, segmentAnnotations, targetAnnotations, outputFo
            height=plot_height,
            width=plot_width)
   }
-  write.csv(x=volcanoPlot_results$gene_labels, 
+  write.table(x=volcanoPlot_results$gene_labels, 
               file=file.path(outputFolder,
-                             paste0("labeled_genes_", plot_title, ".csv"), 
-                             fsep=.Platform$file.sep),
-               quote=FALSE, row.names=FALSE)
-} 
+                               paste0("labeled_genes_", plot_title, ".txt"), 
+                               fsep=.Platform$file.sep),
+              sep="\t", quote=FALSE, row.names=FALSE)
+}  
 
 #' plotVolcano
 #'
