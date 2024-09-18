@@ -1,0 +1,7 @@
+# Changelog
+All notable changes to the LabeledCombinedVolcanoPlot.R script for GeoMx(R) DSP will be documented in this file.
+
+## [1.0] - 2024-06-24
+### Added
+- Initial Version
+
